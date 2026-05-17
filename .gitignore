@@ -1,0 +1,30 @@
+# ── Large data — kept locally in AI-CoFolding-Archive/ ──────────────────────
+plb_bench_data/
+predictions/
+output/
+proteinx_output*/
+af3_summary_final*/
+allosteric_csv_run_outputs*/
+output_final_sumary_protenix/
+references/ref_cifs/
+
+# ── Local dev / IDE ──────────────────────────────────────────────────────────
+.claude/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ── OS noise ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ── Secrets / env ────────────────────────────────────────────────────────────
+.env
+*.key

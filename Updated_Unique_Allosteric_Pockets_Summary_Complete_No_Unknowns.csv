@@ -1,0 +1,183 @@
+Pocket_ID,UniProt_ID,Protein_Name,Gene_Name,Cavity_Index,Total_Instances,Unique_PDBs,Unique_Ligands,Sample_PDBs,Sample_Ligands
+P07900_N1,P07900,Heat shock protein HSP 90-alpha,HSP90AA1,N1,227,223,207,"2fwy, 3r91, 3ow6","H64, 06H, MEX"
+Q16539_N1,Q16539,Mitogen-activated protein kinase 14,MAPK14,N1,153,132,126,"2zaz, 2gfs, 3nww","GK1, PQB, 3NW"
+P00533_N1,P00533,Epidermal growth factor receptor,EGFR,N1,150,143,109,"3poz, 3bel, 7vre","03P, POX, 7VH"
+P37231_N1,P37231,Peroxisome proliferator-activated receptor gamma,PPARG,N1,112,105,90,"2g0h, 3b0q, 2pob","SP3, MC5, GW4"
+O14965_N1,O14965,Aurora kinase A,AURKA,N1,87,86,78,"3nrm, 5aag, 3fdn","NRM, 6F2, MMH"
+Q04771_N1,Q04771,Activin receptor type-1,ACVR1,N1,62,44,8,"5s7l, 5s8b, 5s7t","LU8, XEJ, T5Y"
+P18031_N1,P18031,Tyrosine-protein phosphatase non-receptor type 1,PTPN1,N1,48,48,36,"2cng, 2h4g, 2hb1","IZE, 694, 512"
+P09874_N1,P09874,Poly [ADP-ribose] polymerase 1,PARP1,N1,42,42,33,"1wok, 5ds3, 4zzz","CNQ, 09L, FSU"
+P10275_N1,P10275,Androgen receptor,AR,N1,40,34,22,"2piq, 3b5r, 3b66","DHT, B5R, B66"
+O15530_N1,O15530,3-phosphoinositide-dependent protein kinase 1,PDPK1,N1,39,39,37,"3qd0, 3rcj, 3qcy","3Q4, 3RC, 3Q3"
+P53779_N1,P53779,Mitogen-activated protein kinase 10,MAPK10,N1,36,31,32,"1pmu, 2zdt, 2o0u","9HP, 46C, C0M"
+P0AD64_N1,P0AD64,DNA gyrase subunit B,gyrB,N1,30,27,1,"2h5s, 3opl, 1rcj",MA4
+P23458_N1,P23458,Tyrosine-protein kinase JAK1,JAK1,N1,29,29,29,"3eyg, 3eyh, 4e5w","MI1, IZA, 0NT"
+P51449_N1,P51449,Nuclear receptor ROR-gamma,RORC,N1,28,28,23,"5c4t, 6cvh, 5c4s","4Y6, FJG, 4Y5"
+Q07869_N1,Q07869,Acetyl-CoA carboxylase 2,ACACA,N1,28,26,16,"1i7g, 2rew, 2znn","AZ2, REW, S44"
+Q16539_N2,Q16539,Mitogen-activated protein kinase 14,MAPK14,N2,27,27,25,"3e93, 3bv2, 3d83","19B, P38, GK6"
+Q13451_N1,Q13451,Peptidyl-prolyl cis-trans isomerase FKBP5,FKBP5,N1,26,26,24,"5bxj, 5obk, 5div","NPO, 9QN, 5BH"
+P35557_N1,P35557,Glucokinase,GCK,N1,25,25,23,"3a0i, 3s41, 1v4s","AJI, S41, MRK"
+Q06124_N1,Q06124,Tyrosine-protein phosphatase non-receptor type 11,PTPN11,N1,24,21,18,"6bmy, 6bmw, 6bmr","5OD, DYV, DZS"
+P24941_N1,P24941,Cyclin-dependent kinase 2,CDK2,N1,23,22,15,"1oir, 3pxz, 3py1","KCX, 2AN, LQ5"
+P63086_N1,P63086,Mitogen-activated protein kinase 1 (Mouse),MAPK1,N1,23,23,22,"3erk, 4xoy, 4i5h","SB4, DX4, G17"
+P09391_N1,P09391,Carbonic anhydrase 9,CA9,N1,21,12,2,"3b45, 3b44, 2ic8","BNG, 78C"
+P02829_N1,P02829,Histatin-1,HTN1,N1,20,20,16,"2fxs, 1bgq, 2iwu","RDA, RDC, NP5"
+O75530_N1,O75530,Protein kinase C theta type,PRKCQ,N1,20,18,12,"3ijc, 5u5k, 5u8f","NDS, 7VY, 82G"
+Q9GZT9_N1,Q9GZT9,Egl nine homolog 1,EGLN1,N1,19,17,15,"2hbt, 3oui, 3ouh","UN9, 42Z, 014"
+Q9H7B4_N1,Q9H7B4,Serine/threonine-protein kinase VRK1,VRK1,N1,19,19,3,"3oxg, 3pdn, 7qa6","SAH, SFG, SAM"
+P01116_N1,P01116,GTPase KRas,KRAS,N1,17,17,16,"7rt2, 7rt3, 7rpz","7NL, 7NZ, 6IC"
+P04637_N1,P04637,Cellular tumor antigen p53,TP53,N1,15,14,14,"8dc8, 5aoj, 5aok","R50, Y0V, GOH"
+P68400_N1,P68400,Casein kinase II subunit alpha,CSNK2A1,N1,14,14,13,"4gub, 5m4i, 5mot","0Y4, 7FC, HBD"
+P10828_N1,P10828,Thyroid hormone receptor alpha,THRA,N1,14,14,8,"1nuo, 1n46, 2pin","4HY, PFA, T44"
+Q07889_N1,Q07889,Son of sevenless homolog 1,SOS1,N1,13,13,13,"7uks, 5ovi, 5ovh","NL0, AXH, AWW"
+Q04771_N2,Q04771,Activin receptor type-1,ACVR1,N2,13,13,3,"5s84, 5s7u, 5s85","LU8, XK4, Q5Z"
+P06401_N1,P06401,Progesterone receptor,PGR,N1,11,11,11,"3g8o, 1sr7, 1zuc","30X, MOF, T98"
+Q9NRG4_N1,Q9NRG4,"Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit gamma",PIK3CG,N1,11,11,2,"3s7j, 3s7b, 5arf","SAM, SAH"
+P53355_N1,P53355,Death-associated protein kinase 1,DAPK1,N1,10,10,8,"5aux, 5auu, 5av3","KMP, LU2, 47X"
+P02699_N1,P02699,"Myosin-binding protein C, cardiac-type",MYBPC3,N1,10,6,3,"3cap, 3oax, 2ped","BGL, HTG, BNG"
+P47811_N1,P47811,Mitogen-activated protein kinase 14,MAPK14,N1,9,8,8,"5r9c, 5r91, 5r9f","7ZC, SNV, SQP"
+P00698_N1,P00698,Lysozyme C (Chicken),LYZ,N1,9,9,9,"2pc2, 7q0u, 2ydg","PDC, 0BP, A5C"
+P00533_N2,P00533,Epidermal growth factor receptor,EGFR,N2,8,8,7,"5xdk, 6jx0, 6vh4","8JC, YY3, QQM"
+P00044_N1,P00044,Myoglobin (Horse),MB,N1,8,7,7,"7pr3, 5lft, 6rgi","80M, 6VB, FWQ"
+Q8WTS6_N1,Q8WTS6,Histone-lysine N-methyltransferase SETD7,SETD7,N1,8,8,3,"5ayf, 1mt6, 1n6c","SAM, SAH, SFG"
+P28482_N1,P28482,Mitogen-activated protein kinase 1,MAPK1,N1,7,7,2,"6qa4, 4xj0, 4qp1","HRZ, NEP"
+P31749_N1,P31749,RAC-alpha serine/threonine-protein kinase,AKT1,N1,7,7,7,"3o96, 4ejn, 6hhi","IQO, 0R4, G4N"
+P97784_N1,P97784,Cryptochrome-1 (Mouse),CRY1,N1,7,7,7,"7wva, 7d1c, 7d19","6I3, GOF, GOC"
+P0DTD1_N1,P0DTD1,Severe acute respiratory syndrome coronavirus 2 3C-like proteinase,SARS-CoV-2 3CLpro,N1,7,7,7,"7qck, 7qcj, 7qch","A7L, A4O, A5I"
+Q9NR48_N1,Q9NR48,Interleukin-21,IL21,N1,7,7,1,"6wzw, 3ope, 4ynp",SAM
+P09391_N2,P09391,Carbonic anhydrase 9,CA9,N2,6,6,1,"3b45, 3b44, 2ic8",BNG
+P08069_N1,P08069,Insulin-like growth factor 1 receptor,IGF1R,N1,6,6,6,"2oj9, 3nw7, 3nw6","BMI, LGV, LGW"
+P37231_N2,P37231,Peroxisome proliferator-activated receptor gamma,PPARG,N2,6,6,6,"7efq, 8dsy, 6jf0","J3F, TJC, EB6"
+Q96SB4_N1,Q96SB4,SRSF protein kinase 1,SRPK1,N1,5,5,5,"7zks, 5xv7, 4wua","IXQ, EMH, 3UL"
+P01584_N1,P01584,Interleukin-1 beta,IL1B,N1,5,3,3,"5r87, 5r8b, 6y8m","K0G, K34, SX2"
+P25103_N1,P25103,C-C motif chemokine 3,CCL3,N1,5,5,4,"6hlp, 6e59, 6hll","GAW, L76, GBK"
+P00044_N2,P00044,Myoglobin (Horse),MB,N2,5,5,2,"6rsi, 6rsj, 6rgi","EVB, FWQ"
+P19793_N1,P19793,Retinoic acid receptor RXR-alpha,RXRA,N1,5,4,4,"6hn6, 5zqu, 7cfo","CPS, 9HF, WZ6"
+P0A776_N1,P0A776,2-oxoglutarate dehydrogenase E1 component,sucA,N1,4,3,3,"6vcr, 6vco, 6vcn","CTP, APC, G2P"
+Q9NZQ7_N1,Q9NZQ7,Programmed cell death 1 ligand 1,CD274,N1,4,4,4,"5j8o, 7dy7, 6noj","6GZ, HOU, KW7"
+Q5ZXN6_N1,Q5ZXN6,Bromodomain-containing protein 4 (Isoform),BRD4,N1,4,3,3,"4bes, 4bet, 4ber","C5P, PC, CDC"
+P00183_N1,P00183,Cytochrome c (Horse),CYC,N1,4,4,4,"2l8m, 1p2y, 6wfl","CAM, NCT, CAH"
+P19120_N1,P19120,Oxytocin receptor,OXTR,N1,4,4,4,"7plk, 6h54, 7odb","7UE, 3FD, V8Q"
+P01112_N1,P01112,GTPase HRas,HRAS,N1,4,3,3,"3rsl, 5vbe, 3l8y","RSF, 92V, YCN"
+P02768_N1,P02768,Serum albumin,ALB,N1,4,4,2,"2bxk, 2bxm, 2bxq","IMN, MOA"
+P02753_N1,P02753,Retinol-binding protein 4,RBP4,N1,4,4,4,"5nu7, 3fmz, 4psq","RTL, 2T1, 2WL"
+P11233_N1,P11233,Ras-related protein Ral-A,RALA,N1,4,4,4,"6p0n, 6p0l, 6p0k","NLS, NLJ, NLV"
+Q96RI1_N1,Q96RI1,Protein-glutamine gamma-glutamyltransferase 2,TGM2,N1,4,4,4,"4oiv, 3fli, 3l1b","XX9, 33Y, 635"
+Q980A5_N1,Q980A5,Caspase-3 (Rat),CASP3,N1,3,3,2,"3pen, 4m53, 3i1f","5GP, GCP"
+Q9HKT1_N1,Q9HKT1,Bromodomain-containing protein 4 (Isoform),BRD4,N1,3,2,2,"2art, 2c8m","AMP, LPA"
+P24941_N2,P24941,Cyclin-dependent kinase 2,CDK2,N2,3,3,3,"5a14, 4ez7, 4d1z","LQ5, 2AN, WG8"
+P00698_N2,P00698,Lysozyme C (Chicken),LYZ,N2,3,3,3,"5b59, 4pru, 4fjr","KTO, DM0, 0UF"
+P35439_N1,P35439,Heat shock protein beta-1 (Rat),HSPB1,N1,3,3,3,"1pbq, 1y1m, 4kfq","DK1, AC5, KFQ"
+D9J2T9_N1,D9J2T9,Phospho-N-acetylmuramoyl-pentapeptide-transferase,mraY,N1,3,3,2,"3qji, 4guw, 4emr","MGP, LP5"
+Q9Y657_N1,Q9Y657,Protein kinase C epsilon type,PRKCE,N1,3,3,3,"6i8y, 5jsj, 5jsg","2OD, 6PD, 6P9"
+O14936_N1,O14936,Peripheral plasma membrane protein CASK,CASK,N1,3,3,3,"7oak, 7oai, 7oal","V6B, V5W, V62"
+P18031_N2,P18031,Tyrosine-protein phosphatase non-receptor type 1,PTPN1,N2,3,3,3,"3eb1, 1nwl, 2cmb","LZQ, 964, F17"
+P45983_N1,P45983,Mitogen-activated protein kinase 8,MAPK8,N1,3,3,3,"3pze, 3elj, 4awi","CFK, GS7, AQ2"
+P62593_N1,P62593,"Myosin light chain 1/3, skeletal muscle isoform",MYL1,N1,3,3,3,"1axb, 1pzo, 4zj1","FOS, CBT, 4OU"
+P13423_N1,P13423,"Alkaline phosphatase, tissue-nonspecific isozyme",ALPL,N1,3,3,2,"3q8f, 4nam, 3mhz","2HF, FTR"
+P0A6A8_N1,P0A6A8,DNA-directed RNA polymerase subunit beta,rpoB,N1,3,3,3,"2fad, 2fac, 2fae","PM5, PM4, PM8"
+P77173_N1,P77173,Adenylosuccinate synthetase,purA,N1,3,3,3,"1y2f, 1s1j, 1y2g","WAI, IQZ, CL3"
+P10599_N1,P10599,Thioredoxin,TXN,N1,3,3,1,"4pok, 4pom, 4pol",COM
+P03007_N1,P03007,LexA repressor,lexA,N1,3,2,1,"1j53, 1j54",TMP
+P06730_N1,P06730,Eukaryotic translation initiation factor 4E,EIF4E,N1,3,3,3,"7meu, 4dum, 4tqc","Z5D, HLI, 34J"
+P0AEX9_N1,P0AEX9,Maltose-binding periplasmic protein,MBP,N1,3,3,3,"8ax7, 8ax5, 7p0i","OL0, OKU, 7IU"
+Q3TDN0_N1,Q3TDN0,Bromodomain-containing protein 4 (Mouse),BRD4,N1,2,2,1,"7rph, 7rpi",AV0
+Q14116_N1,Q14116,Interleukin-18,IL18,N1,2,1,1,3wo2,CPS
+Q16552_N2,Q16552,Interleukin-17A,IL17A,N2,2,2,2,"8dyf, 8dyi","U5I, U6C"
+Q06124_N2,Q06124,Tyrosine-protein phosphatase non-receptor type 11,PTPN11,N2,2,2,1,"6bmy, 6bmw",5OD
+Q9UBP6_N1,Q9UBP6,Prostaglandin E2 receptor EP4 subtype,PTGER4,N1,2,2,2,"8d59, 8d5b","SAM, SAH"
+P53667_N1,P53667,Protein S100-A12,S100A12,N1,2,2,2,"8aau, 5nxc","LH0, 9DB"
+P51449_N2,P51449,Nuclear receptor ROR-gamma,RORC,N2,2,2,2,"5lwp, 6t4u","79U, 4F1"
+Q46220_N1,Q46220,Potassium voltage-gated channel subfamily KQT member 1,KCNQ1,N1,2,2,2,"1gir, 1giq","NDP, NAI"
+Q6PL18_N1,Q6PL18,Histone acetyltransferase KAT2A,KAT2A,N1,2,2,2,"5qxq, 6ept","RHV, BQQ"
+P63316_N1,P63316,"Troponin C, slow skeletal and cardiac muscles",TNNC1,N1,2,2,1,"2jt8, 2jtz",FTR
+P60568_N1,P60568,Interleukin-2,IL2,N1,2,2,2,"1m4a, 1nbp","MPE, MHC"
+P63086_N2,P63086,Mitogen-activated protein kinase 1 (Mouse),MAPK1,N2,2,2,2,"4i5h, 5hd4","G17, 38Z"
+Q07869_N2,Q07869,Acetyl-CoA carboxylase 2,ACACA,N2,2,2,2,"6kb5, 6l36","ITY, GW9"
+B6YWB8_N1,B6YWB8,Bromodomain-containing protein 4,BRD4,N1,2,1,1,6kbd,DTP
+P06129_N1,P06129,Insulin receptor (Partial),INSR,N1,2,2,1,"3m8b, 3m8d",MTN
+P19793_N2,P19793,Retinoic acid receptor RXR-alpha,RXRA,N2,2,2,2,"6hn6, 5tbp","CPS, 7A4"
+O14965_N2,O14965,Aurora kinase A,AURKA,N2,2,2,2,"3o51, 6hjk","LJF, G7W"
+O15530_N2,O15530,3-phosphoinositide-dependent protein kinase 1,PDPK1,N2,2,2,1,"3nax, 3qc4",MP7
+O60885_N1,O60885,Bromodomain-containing protein 4,BRD4,N1,2,2,2,"5e0r, 7mcf","5J5, YX4"
+P00698_N3,P00698,Lysozyme C (Chicken),LYZ,N3,2,2,1,"5c6i, 5c6l",DO3
+P02699_N3,P02699,"Myosin-binding protein C, cardiac-type",MYBPC3,N3,2,2,2,"2ped, 1l9h","HTG, BNG"
+P04150_N1,P04150,Glucocorticoid receptor,NR3C1,N1,2,2,2,"6dxk, 1nhz","HJ4, 486"
+P05121_N1,P05121,Plasminogen activator inhibitor 1,SERPINE1,N1,2,2,2,"4aqh, 4ic0","TB7, GDE"
+P05230_N1,P05230,Fibroblast growth factor 1,FGF1,N1,2,2,2,"3jut, 3k1x","GTQ, DBX"
+P07900_N2,P07900,Heat shock protein HSP 90-alpha,HSP90AA1,N2,2,2,2,"5lr7, 6u98","73J, Q2D"
+P10275_N2,P10275,Androgen receptor,AR,N2,2,2,2,"2ylp, 2ylq","056, YLQ"
+P11838_N1,P11838,Cytochrome c (Rat),CYCS,N1,2,2,2,"4yd4, 5sal","4AY, ZS1"
+P12369_N1,P12369,Interleukin-10 (Mouse),IL10,N1,2,2,2,"1cx4, 4jva","CMP, 1OR"
+Q9Y657_N2,Q9Y657,Protein kinase C epsilon type,PRKCE,N2,2,2,2,"5jsj, 5jsg","6PD, 6P9"
+P31016_N1,P31016,Platelet-activating factor acetylhydrolase IB subunit alpha,PAFAH1B1,N1,2,2,1,"5w72, 5mz7",AZH
+P60842_N1,P60842,Eukaryotic initiation factor 4A-I,EIF4A1,N1,1,1,1,5zbz,SAU
+P04585_N1,P04585,Reverse transcriptase/RNaseH (HIV-1),HIV-1 RT,N1,1,1,1,3qin,P1Y
+Q9BRQ0_N1,Q9BRQ0,Neuronal acetylcholine receptor subunit alpha-7,CHRNA7,N1,1,1,1,4up5,94W
+Q99816_N2,Q99816,Tumor susceptibility gene 101 protein,TSG101,N2,1,1,1,5vkg,4N1
+Q980A5_N3,Q980A5,Caspase-3 (Rat),CASP3,N3,1,1,1,4m53,GCP
+P00772_N1,P00772,Elastase-1 (Pig),ELA1,N1,1,1,1,2foe,217
+P01112_N2,P01112,GTPase HRas,HRAS,N2,1,1,1,5vbe,92V
+P02699_N2,P02699,"Myosin-binding protein C, cardiac-type",MYBPC3,N2,1,1,1,3oax,HTG
+Q8WTS6_N2,Q8WTS6,Histone-lysine N-methyltransferase SETD7,SETD7,N2,1,1,1,1mt6,SAH
+P47811_N2,P47811,Mitogen-activated protein kinase 14,MAPK14,N2,1,1,1,5r9f,SQP
+P03366_N1,P03366,Thyroid hormone receptor alpha (Chicken),THRA,N1,1,1,1,4qag,F95
+Q6MHT0_N1,Q6MHT0,Bromodomain-containing protein 4 (Isoform),BRD4,N1,1,1,1,3v39,TAU
+Q61091_N1,Q61091,Tyrosine-protein phosphatase non-receptor type 1 (Mouse),PTPN1,N1,1,1,1,6tfb,N6W
+P03369_N1,P03369,Gag polyprotein (HIV-1),gag,N1,1,1,1,3hbo,SMC
+Q46220_N3,Q46220,Potassium voltage-gated channel subfamily KQT member 1,KCNQ1,N3,1,1,1,1gir,NDP
+Q46220_N2,Q46220,Potassium voltage-gated channel subfamily KQT member 1,KCNQ1,N2,1,1,1,1gir,NDP
+Q9BVA6_N1,Q9BVA6,WD repeat-containing protein 5,WDR5,N1,1,1,1,4u0z,APC
+P00760_N1,P00760,Trypsin-1 (Bovine),PRSS1,N1,1,1,1,3t27,BET
+P00734_N1,P00734,Prothrombin,F2,N1,1,1,1,6v5t,FTR
+P43220_N1,P43220,Glucagon-like peptide 1 receptor,GLP1R,N1,1,1,1,7lcj,UK4
+O14936_N2,O14936,Peripheral plasma membrane protein CASK,CASK,N2,1,1,1,7oai,V5W
+Q9Y572_N1,Q9Y572,Receptor-interacting serine/threonine-protein kinase 1,RIPK1,N1,1,1,1,7mx3,ZOV
+Q9UGN5_N1,Q9UGN5,Signal transducer and activator of transcription 3 (Isoform),STAT3,N1,1,1,1,5dsy,UHB
+P42568_N1,P42568,Catenin beta-1,CTNNB1,N1,1,1,1,7vkh,7IY
+Q9QZL0_N1,Q9QZL0,Tyrosine-protein kinase JAK2 (Mouse),JAK2,N1,1,1,1,6oko,1FN
+Q9P289_N1,Q9P289,Serine/threonine-protein kinase PAK 4,PAK4,N1,1,1,1,7b36,59T
+Q9NWT6_N1,Q9NWT6,Heat shock protein HSP 90-beta,HSP90AB1,N1,1,1,1,1yci,NDF
+Q9H7B4_N2,Q9H7B4,Serine/threonine-protein kinase VRK1,VRK1,N2,1,1,1,7o2c,SAM
+Q9NRG4_N2,Q9NRG4,"Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit gamma",PIK3CG,N2,1,1,1,5arf,SAM
+P37231_N3,P37231,Peroxisome proliferator-activated receptor gamma,PPARG,N3,1,1,1,4xum,IMN
+P00044_N3,P00044,Myoglobin (Horse),MB,N3,1,1,1,6gd9,EVB
+Q9N6S8_N1,Q9N6S8,Histone-lysine N-methyltransferase 2D,KMT2D,N1,1,1,1,6ssz,JV1
+Q9HVI1_N1,Q9HVI1,Bromodomain-containing protein 4 (Short isoform),BRD4,N1,1,1,1,2l74,C2E
+P35557_N2,P35557,Glucokinase,GCK,N2,1,1,1,7t78,G2T
+P48061_N1,P48061,C-X-C chemokine receptor type 4,CXCR4,N1,1,1,1,4uai,3GG
+Q29460_N1,Q29460,Interleukin-12 subunit beta (Cow),IL12B,N1,1,1,1,3dt8,SGB
+P61586_N1,P61586,Transforming protein RhoA,RHOA,N1,1,1,1,6kx3,8ZO
+P15319_N1,P15319,Tyrosine-protein kinase Lyn,LYN,N1,1,1,1,2j7l,XC2
+P77173_N3,P77173,Adenylosuccinate synthetase,purA,N3,1,1,1,1y2f,WAI
+P11142_N1,P11142,Heat shock cognate 71 kDa protein,HSPA8,N1,1,1,1,4h5w,BET
+P26043_N1,P26043,Integrin beta-1 (Mouse),ITGB1,N1,1,1,1,1gc6,I3P
+P68135_N1,P68135,"Actin, cytoplasmic 1",ACTB,N1,1,1,1,7ahn,RLZ
+P20701_N1,P20701,Integrin alpha-L,ITGAL,N1,1,1,1,2o7n,2O7
+P63279_N1,P63279,SUMO-conjugating enzyme UBC9,UBE2I,N1,1,1,1,5f6w,5VL
+P15879_N1,P15879,"Peptidyl-tRNA hydrolase 2, mitochondrial",PTRH2,N1,1,1,1,1gzf,NAD
+P04637_N2,P04637,Cellular tumor antigen p53,TP53,N2,1,1,1,4ago,P74
+P62937_N1,P62937,Peptidyl-prolyl cis-trans isomerase A,PPIA,N1,1,1,1,5nou,L60
+P15927_N1,P15927,Replication protein A 32 kDa subunit,RPA2,N1,1,1,1,4ou0,SCH
+P62330_N1,P62330,ADP-ribosylation factor 6,ARF6,N1,1,1,1,2j5x,GSP
+P62136_N2,P62136,Serine/threonine-protein phosphatase PP1-alpha catalytic subunit,PPP1CA,N2,1,1,1,6alz,BKM
+P62136_N1,P62136,Serine/threonine-protein phosphatase PP1-alpha catalytic subunit,PPP1CA,N1,1,1,1,6alz,BKM
+P61769_N1,P61769,Beta-2-microglobulin,B2M,N1,1,1,1,4ra3,TFX
+P27694_N1,P27694,Replication protein A 70 kDa DNA-binding subunit,RPA1,N1,1,1,1,4ijh,1EJ
+Q02724_N1,Q02724,Endoglin,ENG,N1,1,1,1,2hkp,CSX
+P0AEX9_N2,P0AEX9,Maltose-binding periplasmic protein,MBP,N2,1,1,1,8ax5,OKU
+P0ACC1_N2,P0ACC1,Enoyl-[acyl-carrier-protein] reductase,fabI,N2,1,1,1,1t43,SAH
+P0ACC1_N1,P0ACC1,Enoyl-[acyl-carrier-protein] reductase,fabI,N1,1,1,1,1t43,SAH
+P0AA04_N1,P0AA04,Heat shock protein A (Helicobacter),hspA,N1,1,1,1,1pfh,HIP
+P08235_N1,P08235,Mineralocorticoid receptor,MR,N1,1,1,1,6l88,E6R
+P07260_N1,P07260,T-cell surface antigen CD2,CD2,N1,1,1,1,1ap8,M7G
+P06873_N1,P06873,Atrial natriuretic peptide,NPPA,N1,1,1,1,5cw1,PYZ
+Q13451_N2,Q13451,Peptidyl-prolyl cis-trans isomerase FKBP5,FKBP5,N2,1,1,1,4drk,I63
+Q13526_N1,Q13526,Peptidyl-prolyl cis-trans isomerase NIMA-interacting 1,PIN1,N1,1,1,1,3oob,KDH
+P42336_N1,P42336,"Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit alpha",PIK3CA,N1,1,1,1,8gua,1LT
+Q15047_N1,Q15047,Histone-lysine N-methyltransferase SETDB1,SETDB1,N1,1,1,1,5ke2,6S4
+Q15109_N1,Q15109,Advanced glycosylation end product-specific receptor,AGER,N1,1,1,1,2mov,IOR
+P31021_N1,P31021,Fibroblast growth factor 2 (Rat),FGF2,N1,1,1,1,3reg,GSP
+P50616_N1,P50616,Signal transducer and activator of transcription 3 (Mouse),STAT3,N1,1,1,1,5ci9,549
+Q16552_N1,Q16552,Interleukin-17A,IL17A,N1,1,1,1,8dyf,U5I
+P38340_N1,P38340,Heat shock protein HSP 90-alpha (Mouse),HSP90AA1,N1,1,1,1,7d8f,SAH

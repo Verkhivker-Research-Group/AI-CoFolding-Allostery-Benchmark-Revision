@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plb-bench"
+version = "0.1.0"
+description = "High-throughput protein-ligand pose benchmarking for AF3/Proteinx/Chai/DynamicBind via OpenStructure"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "requests>=2.28",
+    "biopython>=1.81",
+    "gemmi>=0.6",        # preferred sanitizer backend
+    "rdkit>=2023.3",     # SDF parsing
+    "pyarrow>=12",       # parquet
+]
+
+[project.optional-dependencies]
+ray = ["ray>=2.6"]
+# OpenStructure is installed outside pip (conda: bioconda::openstructure,
+# or docker: registry.scicore.unibas.ch/schwede/openstructure).
+
+[project.scripts]
+plb-bench = "plb_bench.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["plb_bench*"]

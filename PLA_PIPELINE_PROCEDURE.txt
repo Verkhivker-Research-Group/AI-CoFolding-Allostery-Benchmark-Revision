@@ -1,0 +1,916 @@
+================================================================================
+PLA BENCHMARK PIPELINE — COMPLETE PROCEDURE
+================================================================================
+Generated: 2026-05-02
+Scope: Running the full plb_bench scoring pipeline (pose RMSD, pocket RMSD,
+       QS-global, lDDT-PLI) for PLA (Protein-Ligand Allosteric) runs from
+       AF3 and Chai, producing best/avg CSVs analogous to the main ASD pipeline.
+
+================================================================================
+SECTION 0: KEY DIFFERENCES FROM THE MAIN (ASD) PIPELINE
+================================================================================
+
+The main pipeline uses ASD-format AF3 folders:
+  ASD00060000_1_3HRF_P47_r2
+  └─ parts[2] = PDB ID  (3HRF)   ← used for reference lookup
+  └─ parts[3] = ligand code (P47)
+
+The PLA AF3 folders use a DIFFERENT naming convention:
+  summary_B6YWB8_N1_B6YWB8_DTP_r97          (single-underscore delimited)
+  └─ parts[0] = "summary"          ← PLA identifier prefix
+  └─ parts[1] = UniProt ID (B6YWB8) ← NOT a PDB ID
+  └─ parts[2] = Nn binding site #  (N1, N2, ...)
+  └─ parts[3] = UniProt ID again   (same as parts[1])
+  └─ parts[4] = ligand code (DTP)
+  └─ parts[5] = run # (r97)
+
+  compound_key = f"{parts[1]}_{parts[4]}".lower()  →  "b6ywb8_dtp"
+
+The PLA Chai folders use DOUBLE-underscore delimiters and INCLUDE the PDB code:
+  B6YWB8_N1__6KBD__DTP                       (double-underscore delimited)
+  └─ part[0] (split by "__") = "B6YWB8_N1"   → UniProt=B6YWB8, site=N1
+  └─ part[1] = PDB ID (6KBD)                 ← PDB code IS embedded!
+  └─ part[2] = ligand code (DTP)
+
+  compound_key = f"{uniprot}_{lig}".lower()  →  "b6ywb8_dtp"
+  (same key as AF3 PLA — enables cross-producer comparison)
+
+KEY DIFFERENCES vs main pipeline:
+  1. AF3 PLA: UniProt ID in folder name (not PDB) → needs UniProt→PDB mapping
+             for reference CIF download
+  2. Chai PLA: PDB ID IS in folder name → direct reference lookup, no mapping
+  3. Both: compound_key = {uniprot}_{lig} (not {pdb}_{lig} like ASD)
+  4. Both: id column in output CSV = UniProt ID (not 4-char PDB)
+  5. Chai PLA: multiple PDB structures per UniProt+LIG are NORMAL
+     (e.g., D9J2T9+LP5 has 3QJI, 4EMR, 4GUW → 3×5 = 15 models for that key)
+     The "best" selection picks the single model with lowest pose RMSD across all.
+
+================================================================================
+SECTION 1: DATA LOCATIONS
+================================================================================
+
+AF3 PLA raw data (184 run folders, confirmed on disk):
+  Windows: C:\Users\Ryan\Downloads\af3_summary_final - PLA\
+              nfshome\brfoley\alphafold3\af3_summary_final\
+  WSL:     /mnt/c/Users/Ryan/Downloads/af3_summary_final\ -\ PLA/
+              nfshome/brfoley/alphafold3/af3_summary_final/
+
+  Each folder:  summary_{UNIPROT}_N{n}_{UNIPROT}_{LIG}_{rN}/
+    ├── summary_..._ranking_scores.csv       (seed, sample, ranking_score)
+    └── seed-1_sample-{0..4}/
+          ├── *_model.cif
+          ├── *_summary_confidences.json     (ranking_score, iptm, ptm, ...)
+          └── *_confidences.json
+
+  5 models per folder, ~184 unique UniProt+LIG compounds
+
+Chai PLA raw data (848 run folders, from zip — extract before use):
+  Zip:     C:\Users\Ryan\Downloads\allosteric_csv_run_outputs.zip  (~404 MB)
+  Windows: C:\Users\Ryan\Downloads\allosteric_csv_run_outputs - Chai\
+              runs\allosteric_csv_run\outputs\
+  WSL:     /mnt/c/Users/Ryan/Downloads/allosteric_csv_run_outputs\ -\ Chai/
+              runs/allosteric_csv_run/outputs/
+
+  Each folder:  {UNIPROT}_{Nn}__{PDB}__{LIG}/
+    ├── pred.model_idx_0.cif    (5 CIF files)
+    ├── pred.model_idx_1.cif
+    ├── pred.model_idx_2.cif
+    ├── pred.model_idx_3.cif
+    ├── pred.model_idx_4.cif
+    ├── scores.model_idx_0.npz  (5 confidence score files)
+    ├── scores.model_idx_1.npz
+    ├── scores.model_idx_2.npz
+    ├── scores.model_idx_3.npz
+    └── scores.model_idx_4.npz
+
+  848 folders total. Multiple PDB structures per UniProt+LIG are expected.
+  The NPZ files contain confidence scores — extract with numpy.load().
+
+  Example folders:
+    B6YWB8_N1__6KBD__DTP
+    D9J2T9_N1__3QJI__LP5
+    D9J2T9_N1__4EMR__LP5    ← same D9J2T9+LP5, different PDB
+    D9J2T9_N1__4GUW__LP5    ← same D9J2T9+LP5, another PDB
+    D9J2T9_N1__3QJI__MGP
+
+Benchmark project root:
+  Windows: C:\Users\Ryan\AI-CoFolding-Allostery-Benchmark\
+  WSL:     /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/
+
+================================================================================
+SECTION 2: EXTRACT CHAI PLA ZIP
+================================================================================
+
+The Chai PLA zip file must be extracted before the pipeline can access the CIFs.
+The extraction folder (allosteric_csv_run_outputs - Chai) exists but was empty.
+
+METHOD A — PowerShell (Windows):
+  $dest = 'C:\Users\Ryan\Downloads\allosteric_csv_run_outputs - Chai'
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [System.IO.Compression.ZipFile]::ExtractToDirectory(
+      'C:\Users\Ryan\Downloads\allosteric_csv_run_outputs.zip', $dest)
+
+NOTE: This will FAIL if the destination already has a conflicting "runs" folder
+      structure. If the outputs folder already has files, skip this step.
+
+METHOD B — WSL terminal:
+  cd "/mnt/c/Users/Ryan/Downloads"
+  unzip "allosteric_csv_run_outputs.zip" \
+        -d "allosteric_csv_run_outputs - Chai"
+
+Verify after extraction:
+  ls "C:\Users\Ryan\Downloads\allosteric_csv_run_outputs - Chai\runs\allosteric_csv_run\outputs" | head -5
+  # Should show: B6YWB8_N1__6KBD__DTP  D9J2T9_N1__3QJI__LP5  ...
+
+================================================================================
+SECTION 3: DIRECTORY STRUCTURE TO CREATE
+================================================================================
+
+Inside the benchmark project, create the following new directories:
+
+  plb_bench_data/
+    af3_pla/          ← raw AF3 PLA CIFs copied from Downloads (Stage 1 input)
+    chai_pla/         ← raw Chai PLA CIFs copied from Downloads (Stage 1 input)
+
+  plb_bench_output/
+    pla/              ← Stage 2 scoring output for PLA runs
+
+  evalspreadsheets/
+    pla/              ← final best/avg CSVs for PLA
+
+  references/
+    pla_uniprot_map.csv   ← UniProt→PDB mapping (for AF3 PLA; see Section 5)
+    ref_cifs/             ← already exists; shared with main pipeline
+
+Commands (run in WSL):
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/af3_pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/chai_pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_output/pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/evalspreadsheets/pla
+
+================================================================================
+SECTION 4: COPY RAW PLA DATA INTO BENCHMARK PROJECT
+================================================================================
+
+--- 4a. Copy AF3 PLA raw data (WSL terminal) ---
+
+  SRC="/mnt/c/Users/Ryan/Downloads/af3_summary_final - PLA/nfshome/brfoley/alphafold3/af3_summary_final"
+  DEST="/mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/af3_pla"
+
+  cp -r "$SRC"/summary_* "$DEST"/
+
+This copies all 184 summary_* folders into plb_bench_data/af3_pla/.
+After copying, plb_bench_data/af3_pla/ should look like:
+
+  af3_pla/
+    summary_B6YWB8_N1_B6YWB8_DTP_r97/
+      summary_B6YWB8_N1_B6YWB8_DTP_r97_ranking_scores.csv
+      seed-1_sample-0/  *_model.cif  *_summary_confidences.json
+      seed-1_sample-1/  ...
+      seed-1_sample-4/  ...
+    summary_D9J2T9_N1_D9J2T9_MGP_r71/  ...
+    (184 folders total)
+
+--- 4b. Copy Chai PLA raw data (WSL terminal) ---
+
+  SRC="/mnt/c/Users/Ryan/Downloads/allosteric_csv_run_outputs - Chai/runs/allosteric_csv_run/outputs"
+  DEST="/mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/chai_pla"
+
+  cp -r "$SRC"/* "$DEST"/
+
+This copies all 848 {UNIPROT}_{Nn}__{PDB}__{LIG} folders into plb_bench_data/chai_pla/.
+After copying, plb_bench_data/chai_pla/ should look like:
+
+  chai_pla/
+    B6YWB8_N1__6KBD__DTP/
+      pred.model_idx_0.cif
+      pred.model_idx_1.cif
+      pred.model_idx_2.cif
+      pred.model_idx_3.cif
+      pred.model_idx_4.cif
+      scores.model_idx_0.npz
+      scores.model_idx_1.npz
+      scores.model_idx_2.npz
+      scores.model_idx_3.npz
+      scores.model_idx_4.npz
+    D9J2T9_N1__3QJI__LP5/  ...
+    (848 folders total)
+
+================================================================================
+SECTION 5: BUILD THE UNIPROT→PDB MAPPING TABLE (AF3 PLA ONLY)
+================================================================================
+
+Chai PLA does NOT need this step (PDB is embedded in folder name).
+AF3 PLA DOES need this because folder names only contain UniProt IDs.
+
+--- 5a. Extract all unique UniProt IDs from AF3 PLA folder names ---
+
+Run in WSL:
+  ls /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/af3_pla/ \
+  | grep "^summary_" \
+  | awk -F_ '{print $2}' \
+  | sort -u > /tmp/pla_uniprots.txt
+
+  cat /tmp/pla_uniprots.txt   # review the list
+
+--- 5b. Fetch PDB mappings from UniProt REST API ---
+
+Run this Python script in WSL (with conda activate plb):
+
+  python3 << 'EOF'
+  import requests, csv, time
+  from pathlib import Path
+
+  uniprot_ids = Path("/tmp/pla_uniprots.txt").read_text().split()
+  out = Path("/mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/references/pla_uniprot_map.csv")
+
+  rows = []
+  for uid in uniprot_ids:
+      url = f"https://rest.uniprot.org/uniprotkb/{uid}.json"
+      try:
+          r = requests.get(url, timeout=30)
+          if r.status_code == 200:
+              data = r.json()
+              pdbs = []
+              for xref in data.get("uniProtKBCrossReferences", []):
+                  if xref.get("database") == "PDB":
+                      pdbs.append(xref["id"])
+              rows.append({"uniprot": uid, "pdb_ids": ";".join(pdbs),
+                           "best_pdb": pdbs[0] if pdbs else ""})
+              print(f"{uid} -> {pdbs[:3]}")
+          else:
+              rows.append({"uniprot": uid, "pdb_ids": "", "best_pdb": ""})
+              print(f"{uid} -> HTTP {r.status_code}")
+      except Exception as e:
+          rows.append({"uniprot": uid, "pdb_ids": "", "best_pdb": ""})
+          print(f"{uid} -> ERROR {e}")
+      time.sleep(0.5)  # be polite to the API
+
+  with open(out, "w", newline="") as f:
+      w = csv.DictWriter(f, fieldnames=["uniprot","pdb_ids","best_pdb"])
+      w.writeheader(); w.writerows(rows)
+  print(f"\nWrote {len(rows)} rows -> {out}")
+  EOF
+
+--- 5c. Review and correct the mapping ---
+
+Open references/pla_uniprot_map.csv and verify that:
+  - Each UniProt has at least one PDB ID
+  - The "best_pdb" column has the most relevant structure
+    (ideally one that matches or is close to the Chai PLA PDB code for the
+     same UniProt+LIG compound — check the Chai folder names for guidance)
+  - Fill in any blanks manually by searching https://www.rcsb.org/
+
+To cross-reference: for each UniProt in af3_pla/, find the corresponding
+Chai folder and note which PDB Chai used. That is likely the best PDB for AF3.
+
+================================================================================
+SECTION 6: ADD NEW DISCOVERERS IN THE NOTEBOOK
+================================================================================
+
+Open: C:\Users\Ryan\AI-CoFolding-Allostery-Benchmark\scoring\plb_bench_run.ipynb
+
+In cell "Custom discoverers" (cell-3), ADD the following code BELOW the
+existing af3/chai/boltz discoverers. Do NOT remove existing discoverers.
+
+NOTE: The imports `csv as _csv`, `json as _json`, `re`, `defaultdict` must be
+available in the cell scope. They are already imported in the existing cell-3.
+
+============================================================
+ADD 1: AF3 PLA discoverer
+============================================================
+
+  # ── Load UniProt→PDB mapping for PLA reference lookup ─────────────────────
+  _PLA_UNIPROT_MAP_PATH = BENCH_ROOT / "references" / "pla_uniprot_map.csv"
+  _PLA_UNIPROT_MAP: dict | None = None
+
+  def _get_pla_uniprot_map():
+      global _PLA_UNIPROT_MAP
+      if _PLA_UNIPROT_MAP is not None:
+          return _PLA_UNIPROT_MAP
+      _PLA_UNIPROT_MAP = {}
+      if _PLA_UNIPROT_MAP_PATH.exists():
+          import csv as _csv2
+          with open(_PLA_UNIPROT_MAP_PATH) as f:
+              for row in _csv2.DictReader(f):
+                  _PLA_UNIPROT_MAP[row["uniprot"].upper()] = row["best_pdb"].upper()
+      return _PLA_UNIPROT_MAP
+
+
+  @register_discoverer("af3_pla")
+  def discover_af3_pla(raw_root):
+      """
+      AF3 PLA folders: summary_{UNIPROT}_{Nn}_{UNIPROT}_{LIG}_{rN}
+      compound_key = {uniprot}_{lig}.lower()  e.g. b6ywb8_dtp
+      Each folder has seed-1_sample-{0..4}/*_model.cif  (5 models)
+      """
+      all_records = defaultdict(list)
+
+      for folder in sorted(raw_root.iterdir()):
+          if not folder.is_dir() or folder.name.startswith("."):
+              continue
+          parts = folder.name.split("_")
+          # PLA folders start with "summary"
+          if len(parts) < 6 or parts[0] != "summary":
+              continue
+
+          uniprot = parts[1]          # e.g. B6YWB8
+          lig     = parts[4]          # e.g. DTP
+          pdb_key = f"{uniprot}_{lig}".lower()   # e.g. b6ywb8_dtp
+
+          # Per-sample ranking scores from CSV
+          ranking: dict[int, float] = {}
+          ranking_csv = folder / f"{folder.name}_ranking_scores.csv"
+          if ranking_csv.exists():
+              try:
+                  with open(ranking_csv, newline="") as f2:
+                      for row in _csv.DictReader(f2):
+                          ranking[int(row["sample"])] = float(row["ranking_score"])
+              except Exception:
+                  pass
+
+          for sample_dir in sorted(folder.glob("seed-1_sample-*")):
+              m = re.search(r"sample-(\d+)$", sample_dir.name)
+              if not m:
+                  continue
+              sample_idx = int(m.group(1))
+              cif_files = list(sample_dir.glob("*_model.cif"))
+              if not cif_files:
+                  continue
+              conf_files = list(sample_dir.glob("*_summary_confidences.json"))
+              raw: dict = {}
+              confidence = ranking.get(sample_idx)
+              if conf_files:
+                  try:
+                      meta = _json.loads(conf_files[0].read_text())
+                      for k in ("ranking_score", "iptm", "ptm"):
+                          if k in meta and isinstance(meta[k], (int, float)):
+                              raw[k] = float(meta[k])
+                      if confidence is None:
+                          confidence = raw.get("ranking_score", raw.get("iptm"))
+                  except Exception:
+                      pass
+
+              all_records[pdb_key].append(ModelRecord(
+                  pdb_id=pdb_key, producer="af3_pla",
+                  structure_path=cif_files[0],
+                  raw_scores=raw, confidence=confidence,
+              ))
+
+      for pdb_key, records in sorted(all_records.items()):
+          records.sort(key=lambda r: r.confidence or 0.0, reverse=True)
+          yield pdb_key, records
+
+
+============================================================
+ADD 2: Chai PLA discoverer
+============================================================
+
+  @register_discoverer("chai_pla")
+  def discover_chai_pla(raw_root):
+      """
+      Chai PLA folders: {UNIPROT}_{Nn}__{PDB}__{LIG}  (double-underscore delim)
+      compound_key = {uniprot}_{lig}.lower()  e.g. b6ywb8_dtp
+      Each folder has pred.model_idx_{0..4}.cif  (5 models)
+      Confidence from scores.model_idx_{N}.npz  (numpy array)
+      """
+      import numpy as _np
+
+      all_records = defaultdict(list)
+
+      for folder in sorted(raw_root.iterdir()):
+          if not folder.is_dir() or folder.name.startswith("."):
+              continue
+          # Split on double underscore: ["{UNIPROT}_{Nn}", "{PDB}", "{LIG}"]
+          dparts = folder.name.split("__")
+          if len(dparts) != 3:
+              continue
+          uniprot_site = dparts[0]          # e.g. "B6YWB8_N1"
+          pdb4         = dparts[1].upper()  # e.g. "6KBD"
+          lig          = dparts[2]          # e.g. "DTP"
+          uniprot      = uniprot_site.split("_")[0].upper()  # e.g. "B6YWB8"
+          pdb_key      = f"{uniprot}_{lig}".lower()          # e.g. "b6ywb8_dtp"
+
+          for idx in range(5):
+              cif_path = folder / f"pred.model_idx_{idx}.cif"
+              npz_path = folder / f"scores.model_idx_{idx}.npz"
+              if not cif_path.exists():
+                  continue
+
+              confidence = None
+              raw: dict = {}
+              if npz_path.exists():
+                  try:
+                      npz = _np.load(str(npz_path))
+                      # Common keys: aggregate_score, ptm, iptm, ...
+                      for key in ("aggregate_score", "ptm", "iptm"):
+                          if key in npz:
+                              val = float(npz[key])
+                              raw[key] = val
+                              if key == "aggregate_score":
+                                  confidence = val
+                      if confidence is None and raw:
+                          confidence = next(iter(raw.values()))
+                  except Exception:
+                      pass
+
+              # Store pdb4 in raw_scores so pre-warm can find the reference
+              raw["__pdb4__"] = pdb4
+
+              all_records[pdb_key].append(ModelRecord(
+                  pdb_id=pdb_key, producer="chai_pla",
+                  structure_path=cif_path,
+                  raw_scores=raw, confidence=confidence,
+              ))
+
+      for pdb_key, records in sorted(all_records.items()):
+          records.sort(key=lambda r: r.confidence or 0.0, reverse=True)
+          yield pdb_key, records
+
+
+  print("Registered discoverers:", sorted(DISCOVERERS.keys()))
+  # Should include: af3, af3_pla, boltz, chai, chai_pla
+
+NOTE about pdb4 in raw_scores: the __pdb4__ key is only used by the pre-warm
+reference download step. The OST scorer ignores unknown keys in raw_scores.
+It is NOT used as the pdb_id for scoring (pdb_id remains the compound_key).
+
+================================================================================
+SECTION 7: UPDATE cell-5 (1 · Paths) FOR PLA
+================================================================================
+
+In cell-5, ADD the following AFTER the existing RAW_ROOTS definition.
+Keep all existing entries — just add new lines.
+
+Existing (keep as is):
+  RAW_ROOTS = {
+      "chai":  BENCH_ROOT / "predictions" / "chai_main",
+      "boltz": BENCH_ROOT / "predictions" / "boltz_main",
+      "af3":   BENCH_ROOT / "plb_bench_data" / "af3",
+  }
+
+Add after it:
+  # ── PLA-specific paths ────────────────────────────────────────────────────
+  PLA_RAW_ROOTS = {
+      "af3_pla":  BENCH_ROOT / "plb_bench_data" / "af3_pla",
+      "chai_pla": BENCH_ROOT / "plb_bench_data" / "chai_pla",
+  }
+  PLA_OUTPUT_DIR = BENCH_ROOT / "plb_bench_output" / "pla"
+  PLA_EVAL_DIR   = BENCH_ROOT / "evalspreadsheets" / "pla"
+  PLA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+  PLA_EVAL_DIR.mkdir(parents=True, exist_ok=True)
+
+================================================================================
+SECTION 8: PLA REFERENCE PRE-WARM (new cell, after cell-11)
+================================================================================
+
+Create a NEW cell after cell-11 for PLA reference pre-warming.
+This cell downloads PDB reference CIFs needed for scoring:
+  - AF3 PLA: uses pla_uniprot_map.csv to find PDB IDs
+  - Chai PLA: PDB IDs are embedded in folder names (stored in __pdb4__ key)
+
+Add this as a new code cell:
+
+  # ── PLA reference pre-warm ────────────────────────────────────────────────
+  import shutil as _shutil
+  import requests as _preq
+  import csv as _csv2
+  import numpy as _np2
+
+  def _prewarm_pla_refs(pla_raw_roots, refs_dir):
+      """Pre-warm reference CIFs for PLA runs."""
+      refs_dir = Path(refs_dir)
+      refs_dir.mkdir(parents=True, exist_ok=True)
+
+      # Load AF3 UniProt→PDB mapping
+      umap = {}
+      umap_path = BENCH_ROOT / "references" / "pla_uniprot_map.csv"
+      if umap_path.exists():
+          with open(umap_path) as f:
+              for row in _csv2.DictReader(f):
+                  umap[row["uniprot"].upper()] = row["best_pdb"].upper()
+
+      pairs = []   # (compound_key, pdb4)
+      seen  = set()
+
+      for producer, raw_root in pla_raw_roots.items():
+          raw_root = Path(raw_root)
+          if not raw_root.is_dir():
+              print(f"  SKIP {producer}: {raw_root} not found")
+              continue
+
+          for folder in sorted(raw_root.iterdir()):
+              if not folder.is_dir() or folder.name.startswith("."):
+                  continue
+
+              if producer == "af3_pla":
+                  parts = folder.name.split("_")
+                  if len(parts) < 6 or parts[0] != "summary":
+                      continue
+                  uniprot = parts[1].upper()
+                  lig     = parts[4]
+                  pdb_key = f"{uniprot}_{lig}".lower()
+                  pdb4    = umap.get(uniprot, "")
+                  if not pdb4:
+                      print(f"  WARNING: no PDB mapping for {uniprot} "
+                            f"({pdb_key}) — add to pla_uniprot_map.csv")
+                      continue
+
+              elif producer == "chai_pla":
+                  dparts = folder.name.split("__")
+                  if len(dparts) != 3:
+                      continue
+                  uniprot = dparts[0].split("_")[0].upper()
+                  pdb4    = dparts[1].upper()
+                  lig     = dparts[2]
+                  pdb_key = f"{uniprot}_{lig}".lower()
+
+              else:
+                  continue
+
+              if pdb_key not in seen:
+                  seen.add(pdb_key)
+                  pairs.append((pdb_key, pdb4))
+
+      done, from_local, from_rcsb, failed = [], [], [], []
+      local_source = BENCH_ROOT / "references" / "ref_cifs"
+
+      for compound_key, pdb4 in pairs:
+          dest = refs_dir / f"{compound_key}.cif"
+          dest_gz = refs_dir / f"{compound_key}.cif.gz"
+          if dest.exists() or dest_gz.exists():
+              done.append(compound_key)
+              continue
+
+          # Try local refs_dir first (by PDB code)
+          for local_name in (f"{pdb4}.cif", f"{pdb4.lower()}.cif",
+                              f"{pdb4}.cif.gz", f"{pdb4.lower()}.cif.gz",
+                              f"{pdb4}-assembly1.cif",
+                              f"{pdb4}-assembly1.cif.gz"):
+              local = local_source / local_name
+              if local.exists():
+                  _shutil.copyfile(local, dest_gz if local_name.endswith(".gz") else dest)
+                  from_local.append(compound_key)
+                  done.append(compound_key)
+                  break
+          else:
+              # Download from RCSB
+              data = None
+              for url in [
+                  f"https://files.rcsb.org/download/{pdb4}-assembly1.cif.gz",
+                  f"https://files.rcsb.org/download/{pdb4}.cif.gz",
+              ]:
+                  try:
+                      r = _preq.get(url, timeout=60)
+                      if r.status_code == 200:
+                          data = r.content; break
+                  except Exception:
+                      pass
+              if data:
+                  dest_gz.write_bytes(data)
+                  from_rcsb.append(compound_key)
+                  done.append(compound_key)
+                  print(f"  downloaded {pdb4} -> {compound_key}")
+              else:
+                  failed.append(compound_key)
+                  print(f"  FAILED {pdb4} ({compound_key})")
+
+      print(f"\nPLA ref pre-warm: {len(done)} ok "
+            f"({len(from_local)} local, {len(from_rcsb)} RCSB), "
+            f"{len(failed)} failed")
+      if failed:
+          print("Failed keys:", failed[:10])
+      return done, failed
+
+
+  pla_prewarm_done, pla_prewarm_failed = _prewarm_pla_refs(
+      PLA_RAW_ROOTS,
+      REFS_DIR,   # same refs dir as main pipeline
+  )
+
+================================================================================
+SECTION 9: STAGE 1 — NORMALIZE PLA RAW DATA
+================================================================================
+
+Add a new code cell in the notebook (after the main Stage 1 normalize cell)
+to normalize PLA producers:
+
+  # ── PLA Stage 1 — Normalize ───────────────────────────────────────────────
+  from plb_bench.normalize import normalize_producer
+
+  pla_normalize_entries = []
+  for producer, raw_root in PLA_RAW_ROOTS.items():
+      if not raw_root.exists():
+          print(f"  SKIP {producer}: {raw_root} not found")
+          continue
+      print(f"\n▶ Normalizing {producer} ...")
+      entries = normalize_producer(producer, raw_root, DATA_ROOT, overwrite=True)
+      for e in entries:
+          pla_normalize_entries.append({
+              "producer": e.producer,
+              "pdb_id": e.pdb_id,
+              "n_models": e.n_models,
+              "failed": e.failed,
+              "best_confidence": e.best_confidence,
+          })
+      print(f"  {len(entries)} (producer, pdb_id) groups")
+      print(f"  Total models: {sum(e.n_models for e in entries)}")
+
+  pd.DataFrame(pla_normalize_entries)
+
+After normalization, DATA_ROOT will contain:
+  plb_bench_data/
+    af3_pla/
+      b6ywb8_dtp/
+        model_000.cif     (5 models, sorted by confidence desc)
+        model_001.cif
+        model_002.cif
+        model_003.cif
+        model_004.cif
+        manifest.json
+      d9j2t9_mgp/  ...
+      (one folder per unique uniprot_lig compound_key)
+    chai_pla/
+      b6ywb8_dtp/
+        model_000.cif     (up to 25 models if 5 PDB structures × 5 each)
+        ...
+        manifest.json
+      d9j2t9_lp5/  ...
+      (one folder per unique uniprot_lig compound_key)
+
+================================================================================
+SECTION 10: STAGE 2 — SCORE PLA DATA WITH OST
+================================================================================
+
+Add a new code cell for PLA scoring:
+
+  # ── PLA Stage 2 — Score ───────────────────────────────────────────────────
+  from plb_bench.score_tree import ScoreConfig, run as score_run
+
+  pla_cfg = ScoreConfig(
+      normalized_root=DATA_ROOT,
+      refs_dir=REFS_DIR,
+      output_dir=PLA_OUTPUT_DIR,
+      producers=list(PLA_RAW_ROOTS.keys()),   # ["af3_pla", "chai_pla"]
+      pdb_ids=None,                            # score all
+      n_workers=None,
+      download_missing_refs=True,
+      output_format="parquet",
+  )
+
+  pla_output_path = score_run(pla_cfg)
+  print(f"\n✓ PLA results written to: {pla_output_path}")
+
+Writes: plb_bench_output/pla/benchmark.parquet
+
+This step requires OST (OpenStructure) and runs in WSL with the plb conda env.
+Use nbconvert execution (same as main pipeline) — see Section 12.
+
+================================================================================
+SECTION 11: POCKET RMSD FOR PLA (4b equivalent)
+================================================================================
+
+Add a new cell for pocket RMSD computation on PLA data.
+The code is nearly identical to main 4b; only variable names differ.
+
+IMPORTANT: Run the main 4b cell FIRST (defines compute_pocket_rmsd function).
+
+  # ── PLA Pocket RMSD ───────────────────────────────────────────────────────
+  try:
+      _pla_df = pla_df.copy()
+  except NameError:
+      import pandas as pd
+      _pla_df = None
+      for _c in [PLA_OUTPUT_DIR / "benchmark_with_pocket_rmsd.parquet",
+                 PLA_OUTPUT_DIR / "benchmark.parquet"]:
+          if _c.exists():
+              _pla_df = (pd.read_parquet(_c) if _c.suffix == ".parquet"
+                         else pd.read_csv(_c))
+              print(f"Loaded {_c.name} ({len(_pla_df)} rows)")
+              break
+      if _pla_df is None:
+          raise FileNotFoundError(
+              "PLA benchmark.parquet not found. Run PLA Stage 2 first.")
+
+  from plb_bench.references import _search_local
+
+  pla_pocket_vals = []
+  total = len(_pla_df)
+  for i, (_, row) in enumerate(_pla_df.iterrows()):
+      if i % 500 == 0:
+          print(f"  pocket RMSD {i}/{total} ...")
+      if row["status"] != "ok":
+          pla_pocket_vals.append(None)
+          continue
+      mdl_path = (DATA_ROOT / row["producer"] / row["pdb_id"]
+                   / f"model_{int(row['model_idx']):03d}.cif")
+      ref_path = _search_local(REFS_DIR, row["pdb_id"])
+      if not mdl_path.exists() or ref_path is None:
+          pla_pocket_vals.append(None)
+          continue
+      pla_pocket_vals.append(compute_pocket_rmsd(mdl_path, ref_path))
+
+  _pla_df["pocket_rmsd"] = pla_pocket_vals
+  n_ok = sum(v is not None for v in pla_pocket_vals)
+  print(f"\nPLA pocket_rmsd: {n_ok} ok, {total - n_ok} missing")
+
+  pla_enriched = PLA_OUTPUT_DIR / "benchmark_with_pocket_rmsd.parquet"
+  _pla_df.to_parquet(pla_enriched, index=False)
+  print(f"✓ Saved -> {pla_enriched}")
+  pla_df = _pla_df   # make available to export cell
+
+================================================================================
+SECTION 12: EXPORT PLA CSVs (4c equivalent)
+================================================================================
+
+Add a new cell for PLA CSV export:
+
+  # ── PLA Export ────────────────────────────────────────────────────────────
+  try:
+      _pla_src = pla_df.copy()
+  except NameError:
+      import pandas as pd
+      _pla_src = None
+      for _c in [PLA_OUTPUT_DIR / "benchmark_with_pocket_rmsd.parquet",
+                 PLA_OUTPUT_DIR / "benchmark.parquet"]:
+          if _c.exists():
+              _pla_src = (pd.read_parquet(_c) if _c.suffix == ".parquet"
+                          else pd.read_csv(_c))
+              print(f"Loaded {_c.name} ({len(_pla_src)} rows)")
+              break
+      if _pla_src is None:
+          raise FileNotFoundError("Run PLA scoring + pocket RMSD first.")
+
+  _PLA_RENAME = {
+      "bisy_rmsd":   "pose rmsd",
+      "pocket_rmsd": "pocket rmsd",
+      "qs_global":   "qs score",
+      "lddt_pli":    "lddt-pli",
+  }
+  _PLA_METRIC_COLS = ["bisy_rmsd", "pocket_rmsd", "qs_global", "lddt_pli"]
+
+  def _pla_id(compound_key):
+      # compound_key = "b6ywb8_dtp"  →  id = "b6ywb8"  (UniProt, lowercase)
+      return compound_key.split("_")[0].lower()
+
+  pla_ok = _pla_src[_pla_src["status"] == "ok"].copy()
+  pla_ok["id"] = pla_ok["pdb_id"].apply(_pla_id)
+
+  PLA_EVAL_DIR.mkdir(parents=True, exist_ok=True)
+
+  for producer, grp in pla_ok.groupby("producer"):
+      # Best: one row per UniProt ID, lowest pose RMSD
+      best_idx = (
+          grp.dropna(subset=["bisy_rmsd"])
+             .groupby("id")["bisy_rmsd"]
+             .idxmin().dropna().astype(int)
+      )
+      best = grp.loc[best_idx].copy().rename(columns=_PLA_RENAME)
+      best_cols = (["id"]
+                   + [_PLA_RENAME[c] for c in _PLA_METRIC_COLS if c in grp.columns]
+                   + ["confidence"])
+      best[[c for c in best_cols if c in best.columns]].sort_values("id").to_csv(
+          PLA_EVAL_DIR / f"{producer}mainligand_best.csv", index=False)
+
+      # Avg: mean of all metrics per UniProt ID
+      avg_cols = [c for c in _PLA_METRIC_COLS if c in grp.columns]
+      avg = (grp.groupby("id")[avg_cols + ["confidence"]]
+               .mean().rename(columns=_PLA_RENAME).reset_index())
+      avg_out = ["id"] + [_PLA_RENAME[c] for c in avg_cols] + ["confidence"]
+      avg[[c for c in avg_out if c in avg.columns]].sort_values("id").to_csv(
+          PLA_EVAL_DIR / f"{producer}mainligand_avg.csv", index=False)
+
+      print(f"{producer}: {len(best_idx)} best-rows, {len(avg)} avg-rows")
+
+  print("\nPLA CSVs written to:", PLA_EVAL_DIR)
+
+Output files created:
+  evalspreadsheets/pla/af3_plamainligand_best.csv
+  evalspreadsheets/pla/af3_plamainligand_avg.csv
+  evalspreadsheets/pla/chai_plamainligand_best.csv
+  evalspreadsheets/pla/chai_plamainligand_avg.csv
+
+Columns: id (UniProt ID), pose rmsd, pocket rmsd, qs score, lddt-pli, confidence
+
+================================================================================
+SECTION 13: COMPLETE EXECUTION ORDER (STEP BY STEP)
+================================================================================
+
+Prerequisites (one-time, already done from main pipeline):
+  ✓ OST installed in WSL conda env "plb"
+  ✓ plb_bench scoring.py copied to site-packages
+  ✓ WSL Extensions installed in VS Code
+
+--- One-time PLA prep steps (do these before running notebook) ---
+
+Step 1: Extract Chai PLA zip (PowerShell or WSL — see Section 2)
+  Check first: if outputs folder already has 848 subfolders, skip.
+
+Step 2: Create directories (WSL terminal)
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/af3_pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/chai_pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_output/pla
+  mkdir -p /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/evalspreadsheets/pla
+
+Step 3: Copy raw data (WSL terminal — see Section 4)
+  Copy AF3 PLA summary_* folders → plb_bench_data/af3_pla/
+  Copy Chai PLA {UNI}_{N}__{PDB}__{LIG} folders → plb_bench_data/chai_pla/
+
+Step 4: Build UniProt→PDB mapping for AF3 PLA (WSL terminal, conda activate plb)
+  Run the Python script from Section 5b.
+  Review and correct references/pla_uniprot_map.csv manually.
+  TIP: cross-reference Chai folder names to find the right PDB for each UniProt.
+
+Step 5: Edit the notebook (Windows, VS Code)
+  In scoring/plb_bench_run.ipynb add ALL new cells from Sections 6–12.
+  Specifically:
+    cell-3  : Add af3_pla and chai_pla discoverers (Section 6)
+    cell-5  : Add PLA_RAW_ROOTS, PLA_OUTPUT_DIR, PLA_EVAL_DIR (Section 7)
+    new cell: PLA ref pre-warm after cell-11 (Section 8)
+    new cell: PLA Stage 1 normalize (Section 9)
+    new cell: PLA Stage 2 score (Section 10)
+    new cell: PLA pocket RMSD after main 4b (Section 11)
+    new cell: PLA export after main 4c (Section 12)
+
+--- Run the pipeline ---
+
+Step 6: Run via nbconvert (WSL terminal)
+  conda activate plb
+  cd /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/scoring
+  jupyter nbconvert --to notebook --execute --inplace plb_bench_run.ipynb \
+    --ExecutePreprocessor.kernel_name=plb \
+    --ExecutePreprocessor.timeout=21600
+
+  6-hour timeout recommended:
+    AF3 PLA:  ~184 compounds × 5 models = ~920 scoring jobs
+    Chai PLA: ~848 folders × 5 models  = ~4240 scoring jobs (OST may take 2-3 hrs)
+    Pocket RMSD: additional ~5160 rows
+
+Step 7: Verify outputs (WSL terminal)
+  ls /mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/evalspreadsheets/pla/
+  head -3 .../af3_plamainligand_best.csv
+  head -3 .../chai_plamainligand_best.csv
+
+  Expected output files:
+    af3_plamainligand_best.csv    (one row per UniProt, ~184 rows)
+    af3_plamainligand_avg.csv     (same ~184 rows, averaged)
+    chai_plamainligand_best.csv   (one row per UniProt+LIG combo, ~?? rows)
+    chai_plamainligand_avg.csv    (averaged)
+
+================================================================================
+SECTION 14: CONFIDENCE SCORES — CHAI PLA NPZ FILES
+================================================================================
+
+The Chai PLA confidence scores are stored in .npz files, not JSON.
+The chai_pla discoverer reads them with numpy.load(). Common keys in Chai NPZ:
+
+  aggregate_score  ← overall confidence (use as "confidence")
+  ptm              ← predicted TM-score
+  iptm             ← interface pTM
+
+To inspect a sample NPZ from WSL:
+  conda activate plb
+  python3 -c "
+  import numpy as np
+  d = np.load('/mnt/c/Users/Ryan/AI-CoFolding-Allostery-Benchmark/plb_bench_data/chai_pla/B6YWB8_N1__6KBD__DTP/scores.model_idx_0.npz')
+  print(list(d.keys()))
+  for k in d.keys(): print(k, '=', d[k])
+  "
+
+Update the discoverer's confidence key if the actual key name differs.
+
+================================================================================
+SECTION 15: SUMMARY OF ALL CHANGES MADE TO THE PIPELINE
+================================================================================
+
+Files modified in the notebook (scoring/plb_bench_run.ipynb):
+  cell-3  : Add @register_discoverer("af3_pla") and @register_discoverer("chai_pla")
+  cell-5  : Add PLA_RAW_ROOTS, PLA_OUTPUT_DIR, PLA_EVAL_DIR
+
+New cells added to notebook:
+  After cell-11  : PLA reference pre-warm (_prewarm_pla_refs)
+  After Stage 1  : PLA Stage 1 normalize
+  After Stage 2  : PLA Stage 2 score
+  After main 4b  : PLA pocket RMSD
+  After main 4c  : PLA export
+
+New directories created:
+  plb_bench_data/af3_pla/        (raw AF3 PLA, copied from Downloads)
+  plb_bench_data/chai_pla/       (raw Chai PLA, copied from Downloads)
+  plb_bench_output/pla/          (Stage 2 scoring output)
+  evalspreadsheets/pla/          (final CSVs)
+
+New files created on disk:
+  references/pla_uniprot_map.csv     (UniProt→PDB mapping, manually reviewed)
+
+No changes to:
+  scoring.py                          (OST fixes already applied)
+  normalize.py                        (register_discoverer works as-is)
+  score_tree.py                       (ScoreConfig handles any producer name)
+  references/ref_cifs/                (shared with main pipeline)
+  evalspreadsheets/main/             (main pipeline ASD CSVs untouched)
+  plb_bench_output/ (root)           (main benchmark.parquet untouched)
+
+================================================================================
+END OF PROCEDURE
+================================================================================
