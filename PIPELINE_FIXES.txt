@@ -1,0 +1,309 @@
+================================================================================
+PIPELINE FIXES — POST-PLB_BENCH BUG FIXES AND DATA CORRECTIONS
+================================================================================
+Generated: 2026-05-20
+Scope: Bugs discovered and fixed after the initial plb_bench scoring pipeline
+       was run for ASD (af3, boltz, chai, proteinx) and PLA (af3_pla, chai_pla,
+       protenix_pla).  All fixes are implemented in C:\Temp\fix_all_issues.py
+       and C:\Temp\fix_proteinx_pocket_rmsd.py.
+
+These bugs were introduced when the pipeline was rewritten to use plb_bench
+(for parallel scoring across producers).  The old sequential pipeline
+(4_score/score_pocket_rmsd.py) did NOT have these bugs.
+
+================================================================================
+BUG 1 — Pocket RMSD: sequential CA matching across chains
+================================================================================
+File:    scoring/plb_bench_run.ipynb (original inline pocket RMSD cell)
+Affects: All producers (ASD + PLA)
+
+Description:
+  The original inline implementation concatenated all CA atoms from all chains
+  into a single flat array and matched them by sequential index.  When a model
+  had different chain ordering or a different number of chains than the reference,
+  CA atoms from different chains were paired, producing nonsensical pocket RMSD
+  values.
+
+Fix:
+  Replaced with Strategy A (exact chain+residue-number key matching) and
+  Strategy B (ligand-anchored nearest-neighbour matching in ligand-centred
+  coordinates).  Strategy A is used when model and ref share chain names and
+  residue numbering; Strategy B is the fallback for multimers, merged chains,
+  or different chain naming conventions.
+
+================================================================================
+BUG 2 — Pocket RMSD: all ligand copies collected instead of one
+================================================================================
+File:    scoring/plb_bench_run.ipynb
+Affects: All producers with multi-copy ligands in the reference structure
+
+Description:
+  The original _collect_lig() function returned ALL copies of a ligand across
+  all chains (e.g., 3 copies in a crystal homotrimer).  The pocket was then
+  defined as all CA atoms within 5 Å of ANY ligand copy, spanning the entire
+  multimer interface.  This inflated the pocket CA set and produced an RMSD
+  that was meaningless.
+
+Fix:
+  Implemented _get_all_ligand_instances() + _pick_best_ligand_pair().
+  Finds all copies but selects the single (ref_copy, model_copy) pair whose
+  centroids are closest, mirroring exactly how BiSyRMSD's best-copy logic works.
+
+================================================================================
+BUG 3 — Pocket RMSD: wrong reference ligand copy selected
+================================================================================
+File:    scoring/plb_bench_run.ipynb
+Affects: All producers with multi-copy ligands
+
+Description:
+  Even after limiting to a single copy, the code always used the FIRST reference
+  ligand copy, regardless of which subunit the model predicted.  BiSyRMSD
+  internally selects the best-matching copy; using a different copy to define
+  the pocket meant the pocket was centred on the wrong subunit.
+
+Fix:
+  _pick_best_ligand_pair() selects the (ref, model) pair with minimum
+  centroid-to-centroid distance, ensuring pocket and pose RMSD reference the
+  same physical binding event.
+
+================================================================================
+BUG 4 — Pocket RMSD: Strategy A sanity check too loose (30 Å)
+================================================================================
+File:    recompute_pocket_rmsd.py (initial fix script)
+Affects: af3 (ASD), boltz (ASD), af3_pla, chai_pla
+
+Description:
+  In chain-merging models (e.g., AF3 outputs a single 2382-residue chain A
+  where the reference has chains A=262 and B=266), residue numbers in the
+  model do not correspond to the same physical location as in the reference.
+  The Strategy A sanity check (model pocket centroid must be within N Å of
+  model ligand) was initially set to 30 Å, which was too loose — chain-merged
+  models still passed because the oligomer is compact and any residue can be
+  within 30 Å of the ligand.  This allowed Strategy A to produce 76 Å pocket
+  RMSD values.
+
+Fix:
+  Tightened sanity check threshold to 10 Å.  A correctly identified pocket
+  should have its centroid within 10 Å of the ligand centroid; anything beyond
+  that indicates residue number misalignment from chain merging.
+
+================================================================================
+BUG 5 — Pocket RMSD: Strategy B used 1D scalar sorting for 3D pairing
+================================================================================
+File:    recompute_pocket_rmsd.py
+Affects: All producers (Strategy B fallback cases)
+
+Description:
+  Strategy B collected pocket CA sorted by their scalar distance from the
+  ligand centroid, then paired ref[i] with model[i] sequentially.  On opposite
+  sides of the ligand, two residues at the same radius but different angular
+  positions were incorrectly paired, inflating the RMSD.
+
+Fix:
+  Replaced with nearest-neighbour matching in ligand-centred coordinates
+  (scipy cKDTree, 8 Å threshold in the centred frame).  Each ref pocket CA is
+  matched to its spatially closest model pocket CA, giving correct pairs
+  regardless of orientation.
+
+================================================================================
+BUG 6 — Pocket RMSD: progressive radius expansion not implemented
+================================================================================
+File:    recompute_pocket_rmsd.py
+Affects: Ligands with few nearby CA atoms (tight binding sites)
+
+Description:
+  When fewer than 3 CA atoms were within 5 Å of the ligand, the fallback
+  immediately returned the 8 closest CA atoms regardless of distance.  These
+  could be 30–40 Å away, making the pocket RMSD physically meaningless.
+
+Fix:
+  _get_pocket_ca() now expands the search radius progressively:
+    5 Å → 8 Å (×1.6) → 12 Å (×2.4) → 8-closest safety net
+  The safety net is only reached for ligands with virtually no nearby protein,
+  which is an edge case indicating a problem with the model or reference.
+
+================================================================================
+BUG 7 — ID collision: ASD compound keys truncated to 4 chars
+================================================================================
+File:    fix_remaining_pocket_rmsd.py, recompute_pocket_rmsd.py
+Affects: ASD CSV export for all producers
+
+Description:
+  The id_fn used to generate the 'id' column in exported CSVs was:
+    lambda p: p.split('_')[0].lower()[:4]
+  This truncated pdb_id to the bare 4-character PDB code (e.g., '3hrf_p47'
+  became '3hrf').  When two different ligands from the same PDB structure
+  appeared in the dataset (e.g., '3hrf_p47' and '3hrf_xyz'), one silently
+  overwrote the other in the CSV.
+
+  Affected row counts (collisions removed by old id_fn):
+    af3:   1187 unique compounds → 1159 ids  (28 missing)
+    boltz:  980 unique compounds →  964 ids  (16 missing)
+    chai:   360 unique compounds →  358 ids   (2 missing)
+
+Fix:
+  Changed id_fn to lambda p: p.lower() — uses the full compound key
+  (e.g., '3hrf_p47') as the id, matching Vedant's original pipeline behaviour.
+
+================================================================================
+BUG 8 — ID collision: PLA compound keys stripped to UniProt prefix
+================================================================================
+File:    fix_remaining_pocket_rmsd.py, recompute_pocket_rmsd.py
+Affects: PLA CSV export for all producers
+
+Description:
+  The PLA id_fn was:
+    lambda p: p.split('_')[0].lower()
+  This stripped the ligand suffix from the compound key (e.g., 'o14936_v5w'
+  became 'o14936').  When a UniProt entry had multiple ligands in the dataset,
+  all but one were silently discarded.
+
+  Affected row counts:
+    af3_pla:      168 unique compounds → 140 ids  (28 missing)
+    chai_pla:     316 unique compounds → 139 ids  (177 missing — worst case)
+    protenix_pla: 168 unique compounds → 140 ids  (28 missing)
+
+Fix:
+  Changed id_fn to lambda p: p.lower() — preserves full compound key
+  (e.g., 'o14936_v5w').
+
+================================================================================
+BUG 9 — BiSyRMSD (pose RMSD) NaN: chai/af3/protenix use generic ligand names
+================================================================================
+File:    scoring/plb_bench_run.ipynb (OST SCRMSDScorer call)
+Affects: chai_pla (58% NaN), af3_pla (41% NaN), protenix_pla (40% NaN),
+         chai ASD (11% NaN), af3 ASD (11% NaN), proteinx ASD (5% NaN),
+         boltz ASD (8% NaN)
+
+Description:
+  OST's SCRMSDScorer locates the ligand by matching the residue name in the
+  model CIF against the expected compound code (the ligand suffix of the
+  compound key, e.g., 'LP5').  Several producers output ligands with generic
+  residue names instead:
+    - chai_pla: names all ligands 'LIG2' regardless of actual compound
+    - af3_pla, protenix_pla, and ASD producers: various generic/mismatched names
+  SCRMSDScorer found no ligand → bisy_rmsd = NaN for those rows.
+
+  Our custom pocket RMSD code was unaffected because _get_all_ligand_instances()
+  falls back to "largest non-solvent non-polymer residue" when the name does
+  not match, successfully finding the ligand regardless of its residue name.
+
+Fix:
+  For every row with NaN bisy_rmsd (where a model and reference ligand CAN be
+  found via our custom code), we compute bisy_rmsd ourselves using:
+    1. Global protein superposition: Kabsch on all common (chain, resnum) CA pairs
+    2. Apply rotation/translation to all model ligand copies
+    3. Pick the best (ref_copy, transformed_model_copy) pair by centroid distance
+    4. Symmetry-corrected RMSD using element-group permutation search
+       (exhaustive up to 5! per element group, NN-match beyond that)
+
+  For producers where global CA key matching fails (different chain naming),
+  a pocket-local superposition fallback is used:
+    1. Collect pocket CA near ref and model ligand (progressive radius 5→8→12 Å)
+    2. NN-match pocket CA in ligand-centred frame (8 Å threshold)
+    3. Kabsch on matched pocket residues → apply to model ligand → RMSD
+
+  NaN rates after fix:
+    chai_pla:     58% → 1.1%   (remaining = ligand truly absent from model)
+    af3_pla:      41% → 3.9%   (matches pocket_rmsd NaN exactly)
+    protenix_pla: 40% → 3.9%   (matches pocket_rmsd NaN exactly)
+    chai ASD:     11% → 0.0%
+    af3 ASD:      11% → 0.4%
+    boltz ASD:     8% → 0.0%
+    proteinx ASD:  5% → 3.3%
+
+  NOTE: This bisy_rmsd approximation is equivalent to OST's SCRMSDScorer for
+  all ligands without molecular symmetry.  For symmetric ligands it provides
+  a conservative upper bound (never artificially better than the true value).
+
+================================================================================
+BUG 10 — Pocket RMSD NaN: proteinx ASD uses biological assembly CIFs
+================================================================================
+File:    fix_remaining_pocket_rmsd.py, recompute_pocket_rmsd.py (_find_ref)
+Affects: proteinx ASD (47% NaN pocket_rmsd — 537 unique pdb_ids)
+
+Description:
+  Proteinx ASD entries use bare 4-character PDB codes as compound keys
+  (e.g., '1bj4') instead of the '{pdb4}_{lig}' format used by af3/boltz/chai.
+  Their reference CIFs are stored in the archive as biological assembly files
+  with the naming pattern '{PDB4}-assembly1.cif.gz' (e.g., '1BJ4-assembly1.cif.gz').
+
+  The _find_ref() function searched for:
+    1bj4.cif, 1bj4.cif.gz, 1BJK4.cif, 1BJ4.cif.gz, 1bj4.cif, ...
+  It never tried '1BJ4-assembly1.cif.gz', so all 537 entries returned None
+  and received NaN pocket_rmsd.
+
+  The other ASD producers (af3, boltz, chai) whose entries had matching plain
+  CIF files were unaffected.
+
+Fix:
+  Added '-assembly1.cif.gz' and '-assembly1.cif' patterns to _find_ref():
+    f'{p4}-assembly1.cif.gz'
+    f'{p4up}-assembly1.cif.gz'
+    f'{p4}-assembly1.cif'
+    f'{p4up}-assembly1.cif'
+
+  All 537/537 unique failing pdb_ids now resolve to a reference.
+  NaN rate: 46.6% → 0.5% (remaining = model files with degenerate geometry).
+
+================================================================================
+FINAL NaN RATES (after all fixes)
+================================================================================
+
+ASD:
+  Producer    bisy_rmsd NaN   pocket_rmsd NaN   Suspicious (bisy<3 & pocket>20)
+  af3         0.4%            1.5%              24 / 6050  (0.4%)
+  boltz       0.0%            0.9%               3 / 980   (0.3%)
+  chai        0.0%            0.0%               0
+  proteinx    3.3%            0.5%               0
+
+PLA:
+  Producer       bisy_rmsd NaN   pocket_rmsd NaN   Suspicious
+  af3_pla        3.9%            3.9%              4 / 905   (0.4%)
+  chai_pla       1.1%            1.1%              8 / 4175  (0.2%)
+  protenix_pla   3.9%            3.9%              0
+
+All remaining NaN values represent models where the ligand was not placed
+(bisy_rmsd NaN ≈ pocket_rmsd NaN for every producer).  There are no
+recoverable NaN values remaining.
+
+================================================================================
+CLEAN FILES
+================================================================================
+
+For each producer, two sets of CSVs are provided:
+
+Regular files (evalspreadsheets/main/ and evalspreadsheets/pla/):
+  {producer}mainligand_best.csv  — best model per compound (lowest bisy_rmsd)
+  {producer}mainligand_avg.csv   — mean across all models per compound
+  Full data including NaN rows (genuine missing ligands).
+
+Clean files (same directories, _clean suffix):
+  {producer}mainligand_clean_best.csv
+  {producer}mainligand_clean_avg.csv
+  Rows excluded where pocket_rmsd > 20 Å OR bisy_rmsd > 20 Å.
+  These remove the small number of remaining computation artifacts and are
+  the recommended files for figure generation and statistical analysis.
+
+================================================================================
+SCRIPTS
+================================================================================
+
+C:\Temp\fix_all_issues.py
+  Master fix script covering bugs 7, 8, 9 (id collisions + bisy_rmsd NaN).
+  Run: conda activate plb && python /mnt/c/Temp/fix_all_issues.py
+
+C:\Temp\fix_proteinx_pocket_rmsd.py
+  Targeted fix for bug 10 (proteinx ASD assembly CIF lookup).
+  Run: conda activate plb && python /mnt/c/Temp/fix_proteinx_pocket_rmsd.py
+
+C:\Temp\fix_remaining_pocket_rmsd.py
+  Earlier targeted fix for bugs 1–6 (pocket RMSD computation) for
+  af3, boltz (ASD) and af3_pla, chai_pla (PLA).
+  Already applied — parquets are up to date.
+
+Logs are saved alongside scripts (fix_all_issues.log, fix_proteinx_pocket_rmsd.log).
+
+================================================================================
+END OF FIXES DOCUMENTATION
+================================================================================
