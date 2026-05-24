@@ -180,7 +180,33 @@ def _compute_ligand_metrics(model_ent, ref_ent) -> dict[str, float | None]:
 
 
 def _compute_qs_global(model_ent, ref_ent) -> float | None:
-    """Compute QS-global — tries every known OST API variant, newest first."""
+    """Compute QS-global using the original QSEntity/QSScorer API.
+
+    The original pipeline (4_score/run_all_metrics.py) used QSEntity +
+    QSScorer directly, which includes ALL chains — both protein AND ligand.
+    This means QS-global measures protein-ligand interface contact similarity,
+    producing continuous values (0.8–1.0 range) that reflect how well the
+    model reproduced the binding contacts.
+
+    Newer OST API variants (ChainMapper-based, OST 2.7+) only map polymer
+    chains and strip the ligand, reducing QS-global to a trivial 1.0 for all
+    monomer predictions (since there are no protein-protein interfaces in
+    single-chain predictions). We therefore try the original QSEntity API
+    first, and fall back to the newer variants only if it is unavailable.
+    """
+    # 0. Original API: QSEntity + QSScorer directly — includes ligand chain.
+    #    This matches 4_score/run_all_metrics.py and produces continuous scores.
+    try:
+        from ost.mol.alg.qsscore import QSEntity, QSScorer as _QSScorer
+        mdl_q = QSEntity(model_ent)
+        ref_q = QSEntity(ref_ent)
+        result = _QSScorer(ref_q, mdl_q).Score()
+        v = getattr(result, "qs_global", None)
+        if v is not None:
+            return float(v)
+    except Exception:
+        pass
+
     # 1. High-level ost.mol.alg.scoring.Scorer (OST 2.9+)
     try:
         from ost.mol.alg.scoring import Scorer
@@ -191,7 +217,8 @@ def _compute_qs_global(model_ent, ref_ent) -> float | None:
     except Exception:
         pass
 
-    # 2. QSScorer via ChainMapper (OST 2.7 / 2.8)
+    # 2. QSScorer via ChainMapper (OST 2.7 / 2.8) — polymer chains only,
+    #    returns 1.0 for monomer predictions (ligand excluded).
     try:
         from ost.mol.alg.qsscore import QSScorer
         from ost.mol.alg import chain_mapping as _cm

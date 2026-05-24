@@ -19,10 +19,21 @@
 - Chai-1
 - Protenix
 
+### Orthosteric (Main) Dataset
+- AlphaFold 3 (AF3)
+- Chai-1
+- Boltz-2
+- DynamicBind
+
 
 ## Datasets
 
-### 1. Allosteric Dataset (ASD)
+### 1. Orthosteric (Main) Dataset
+- Canonical protein–ligand complexes derived from the DynamicBind benchmark
+- Binding sites well represented in model training distributions
+- Set of approximately 1,100 complexes
+
+### 2. Allosteric Dataset (ASD)
 - Designed to interrogate the allosteric blind spot in protein–ligand structure prediction
 - Ligands bind to conformationally dynamic pockets spatially remote from canonical active sites
 - **3,680 unique compounds** across four models (af3, boltz, chai, proteinx)
@@ -43,7 +54,7 @@
   - Derived from a large-scale ligand binding pocket dataset for drug discovery (Moine-Franel et al., 2024)
   - Provides a statistically robust probe into the energetic heterogeneity of allostery
 
-### 2. Protein–Ligand Allosteric Dataset (PLA)
+### 3. Protein–Ligand Allosteric Dataset (PLA)
 - Focused evaluation of allosteric ligand binding across a curated set of protein–ligand complexes
 - **652 unique compounds** across three models (af3_pla, chai_pla, protenix_pla)
 - Compound keys follow `{uniprot}_{ligand}` format (e.g., `o14936_v5w`) for cross-model comparison
@@ -65,16 +76,21 @@
   - Binding-site Cα RMSD after chain-aware Kabsch superposition on pocket residues
   - Pocket defined as reference Cα atoms within 5 Å of the correct reference ligand instance
   - Strategy A: exact (chain, residue number) pairing — used when numbering is consistent
-  - Strategy B: ligand-anchored nearest-neighbour matching in ligand-centred frame — fallback
+  - Strategy B: pocket-local Kabsch superposition + one-to-one reference-frame NN matching — fallback
     for chain-merged models, multimers, or non-standard chain naming
-- **QS-score** — Quaternary structure reproduction score (OpenStructure)
+- **QS-score (QS-global)**
+  - Protein–ligand interface quaternary structure score (Bertoni et al. 2017)
+  - Custom reimplementation matching the original OST QSEntity+QSScorer behaviour for monomer+ligand complexes
+  - Linear contact weights w(i) = max(0, (12 Å − d_min(Cβ, lig)) / 12 Å); residue matching via
+    Strategy A (key-based) with pocket-local Kabsch fallback (Strategy B) for chain-merged models
+  - Produces continuous values in [0, 1]; monotonically decreasing with pose RMSD in the 0–20 Å range
 - **lDDT-PLI** — Local Distance Difference Test for protein–ligand interface accuracy (OpenStructure)
 
 
 ## Output Files
 
 Results are in `evalspreadsheets/main/` (ASD) and `evalspreadsheets/pla/` (PLA).  
-Two file variants are provided per producer:
+Four file variants are provided per producer:
 
 | File pattern | Description | Use for |
 |---|---|---|
@@ -107,8 +123,9 @@ After all pipeline fixes, the final NaN rates for successfully scored compounds 
 
 All remaining NaN values represent models where the ligand was genuinely absent from the prediction.
 
-> See `PIPELINE_FIXES.txt` for a full description of the 10 bugs identified and fixed in the
-> plb_bench scoring pipeline after the initial run.
+> See `PIPELINE_FIXES.txt` for a full description of the bugs identified and fixed in the
+> plb_bench scoring pipeline after the initial run, including pocket RMSD errors, id collision
+> bugs, BiSyRMSD NaN recovery, reference CIF lookup failures, and the QS-score API migration.
 
 
 ## Repository Structure
@@ -126,7 +143,7 @@ The repository is organized as a modular, stage-based analysis pipeline. Each fo
   Construction of model-specific inputs, including FASTA files, ligand specifications, and AlphaFold 3 JSON requests.
 
 - **`2_run_models/`**  
-  Collection and standardization of prediction outputs from AF3, Chai-1, Boltz-2, and Protenix into a unified format.
+  Collection and standardization of prediction outputs from AF3, Chai-1, Boltz-2, DynamicBind, and Protenix into a unified format.
 
 - **`3_postprocess_predictions/`**  
   Post-processing of CIF structures, including ligand extraction, pocket and binding-site residue definition, and structure normalization.
@@ -161,9 +178,9 @@ The repository is organized as a modular, stage-based analysis pipeline. Each fo
   Shared helper functions and utilities used across multiple pipeline stages.
 
 - **`PIPELINE_FIXES.txt`**  
-  Full documentation of 10 bugs identified and corrected in the plb_bench scoring pipeline,
-  including pocket RMSD computation errors, id collision bugs, BiSyRMSD NaN recovery, and
-  reference CIF lookup failures.
+  Full documentation of bugs identified and corrected in the plb_bench scoring pipeline,
+  including pocket RMSD computation errors, id collision bugs, BiSyRMSD NaN recovery,
+  reference CIF lookup failures, and the QS-score custom reimplementation.
 
 - **`PLA_PIPELINE_PROCEDURE.txt`**  
   Step-by-step procedure for running the PLA pipeline from raw model outputs through to
@@ -201,8 +218,8 @@ conda activate plb
 # Fix id collisions, BiSyRMSD NaN, and re-export all CSVs with clean variants
 python /mnt/c/Temp/fix_all_issues.py 2>&1 | tee /mnt/c/Temp/fix_all_issues.log
 
-# Fix proteinx ASD pocket RMSD (assembly CIF lookup)
-python /mnt/c/Temp/fix_proteinx_pocket_rmsd.py 2>&1 | tee /mnt/c/Temp/fix_proteinx_pocket_rmsd.log
+# Recompute QS-global using custom PLI scorer (OST API migration)
+python /mnt/c/Temp/fix_qs_global.py 2>&1 | tee /mnt/c/Temp/fix_qs_global.log
 ```
 
 
@@ -223,9 +240,10 @@ python /mnt/c/Temp/fix_proteinx_pocket_rmsd.py 2>&1 | tee /mnt/c/Temp/fix_protei
 This project relies on **OpenStructure (OST)** and its Python bindings for all structure scoring:
 - `ost.mol.alg.ligand_scoring_scrmsd` (BiSyRMSD / SCRMSDScorer)
 - `ost.mol.alg.ligand_scoring_lddtpli` (lDDT-PLI)
-- `ost.mol.alg.qsscore` (QS-score)
+- `ost.mol.alg.qsscore` (QS-score — custom reimplementation for OST 2.9+)
 
-> OpenStructure is Linux-only and must be installed in WSL. All scoring steps run inside WSL via `jupyter nbconvert`.
+> OpenStructure is Linux-only and must be installed in WSL. All scoring steps run inside WSL via `jupyter nbconvert`.  
+> The original pipeline used a Docker-based OpenStructure workflow; the revision pipeline runs natively in a WSL conda environment (`plb`).
 
 ### Standard Library
 - `argparse`, `pathlib`, `json`, `csv`, `re`, `shutil`, `dataclasses`, `typing`
@@ -242,3 +260,8 @@ This project relies on **OpenStructure (OST)** and its Python bindings for all s
    *A comprehensive dataset of protein–protein interactions and ligand binding pockets for advancing drug discovery.*  
    Scientific Data, 2024, **11**(1):402.  
    https://doi.org/10.1038/s41597-024-03233-z
+
+3. **Bertoni M, Kiefer F, Biasini M, Bordoli L, Schwede T.**  
+   *Modeling protein quaternary structure of homo- and hetero-oligomers beyond binary interactions by homology.*  
+   Scientific Reports, 2017, **7**(1):10480.  
+   https://doi.org/10.1038/s41598-017-09654-8

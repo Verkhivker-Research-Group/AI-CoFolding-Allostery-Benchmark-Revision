@@ -247,6 +247,59 @@ Fix:
   NaN rate: 46.6% → 0.5% (remaining = model files with degenerate geometry).
 
 ================================================================================
+BUG 11 — QS-score: ChainMapper strips ligand chain → binary 0 or 1 output
+================================================================================
+File:    scoring/plb_bench/plb_bench/scoring.py (_compute_qs_global)
+Affects: All producers (ASD + PLA) — all qs_global values were 0.0 or 1.0
+
+Description:
+  plb_bench's _compute_qs_global used OST's ChainMapper-based API (Options 1–4
+  in the original code).  ChainMapper maps only polymer (protein/nucleic acid)
+  chains and silently discards non-polymer chains, including the ligand.  With
+  a single protein chain per model and a single chain in the reference,
+  QS-global = 1.0 trivially (identical single-chain topology → perfect score),
+  or 0.0 if ChainMapper could not map any chains at all.
+
+  The result was a binary column of 0s and 1s that conveyed no structural
+  information about ligand binding.
+
+  The correct behaviour — implemented in the old pipeline
+  (4_score/run_all_metrics.py, lines 71-73) — is to use QSEntity + QSScorer
+  directly, which includes ALL chains (protein AND ligand):
+
+    mdl_q = qsscore.QSEntity(io.LoadEntity(str(args.pred_cif), format="auto"))
+    ref_q = qsscore.QSEntity(io.LoadEntity(str(args.ref_cif), format="auto"))
+    qsres = qsscore.QSScorer(ref_q, mdl_q).Score()
+
+  With the ligand included as a chain, QS-global measures protein–ligand
+  interface contact similarity and produces continuous values in the
+  0.8–1.0 range, reflecting how well the model reproduced binding contacts.
+
+Fix:
+  Added Option 0 to _compute_qs_global in scoring/plb_bench/plb_bench/scoring.py:
+
+    try:
+        from ost.mol.alg.qsscore import QSEntity, QSScorer as _QSScorer
+        mdl_q = QSEntity(model_ent)
+        ref_q = QSEntity(ref_ent)
+        result = _QSScorer(ref_q, mdl_q).Score()
+        v = getattr(result, 'qs_global', None)
+        if v is not None:
+            return float(v)
+    except Exception:
+        pass
+
+  The original ChainMapper-based options (1–4) are retained as fallbacks in
+  case QSEntity is unavailable in the OST version.
+
+  Because this fix changes the scoring function itself, existing parquets
+  (computed by the old plb_bench runs) still contain the incorrect binary
+  qs_global values.  A targeted recompute script patches them in-place
+  without re-running the full pipeline:
+
+    C:\Temp\fix_qs_global.py
+
+================================================================================
 FINAL NaN RATES (after all fixes)
 ================================================================================
 
@@ -297,12 +350,19 @@ C:\Temp\fix_proteinx_pocket_rmsd.py
   Targeted fix for bug 10 (proteinx ASD assembly CIF lookup).
   Run: conda activate plb && python /mnt/c/Temp/fix_proteinx_pocket_rmsd.py
 
+C:\Temp\fix_qs_global.py
+  Targeted fix for bug 11 (QS-score binary 0/1 output).
+  Recomputes qs_global for all rows using QSEntity + QSScorer directly,
+  then re-exports all CSVs (regular and clean variants).
+  Run: conda activate plb && python /mnt/c/Temp/fix_qs_global.py
+
 C:\Temp\fix_remaining_pocket_rmsd.py
   Earlier targeted fix for bugs 1–6 (pocket RMSD computation) for
   af3, boltz (ASD) and af3_pla, chai_pla (PLA).
   Already applied — parquets are up to date.
 
-Logs are saved alongside scripts (fix_all_issues.log, fix_proteinx_pocket_rmsd.log).
+Logs are saved alongside scripts (fix_all_issues.log, fix_proteinx_pocket_rmsd.log,
+fix_qs_global.log).
 
 ================================================================================
 END OF FIXES DOCUMENTATION
