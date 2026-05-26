@@ -144,7 +144,14 @@ def _score_group(args: tuple) -> list[dict]:
                 n_ligand_residues=m.get("n_ligand_residues", 0),
                 ligand_chain_ids=tuple(m.get("ligand_chain_ids", [])),
             )
-            metrics = _scoring_mod.score_model(san, ref_path)
+            # For producers that store a separate ligand SDF (e.g. DynamicBind),
+            # pass it to score_model so it can load the ligand with proper bond
+            # connectivity (OST cannot infer bonds for unknown residue names like
+            # LIG from the CIF alone).  For CIF-native producers this is None and
+            # the existing path is unchanged.
+            sdf_path = m.get("source_ligand_path")
+            metrics = _scoring_mod.score_model(san, ref_path,
+                                               ligand_sdf_path=sdf_path)
             status = "ok" if any(v is not None for v in metrics.values()) \
                      else "ost_no_metrics"
             rows.append(ScoreRecord(

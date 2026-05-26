@@ -271,6 +271,155 @@ def discover_dynamicbind(raw_root: Path) -> Iterator[tuple[str, list[ModelRecord
             yield pdb_id, records
 
 
+# ─── DynamicBind ASD ────────────────────────────────────────────────────────
+# ASD DynamicBind raw layout:
+#   <raw_root>/allosteric_{UNIPROT}_{Nn}_{PDB}_{LIG}/
+#                 complete_affinity_prediction.csv   (name,rank,lddt,affinity)
+#                 index0_idx_0/
+#                   rank{k}_receptor_lddt{X}_affinity{Y}.pdb
+#                   rank{k}_ligand_lddt{X}_affinity{Y}.sdf
+#
+# Folder naming differs from the generic DynamicBind discoverer:
+#   - Folders are named  allosteric_{UNIPROT}_{Nn}_{PDB}_{LIG}  (not bare PDB IDs).
+#   - Multiple folders (different Nn / PDB references) share the same compound
+#     key  {uniprot}_{lig}.lower()  and their records are pooled together.
+#   - PDB/SDF files live one level deeper in  index0_idx_0/  (rglob handles this).
+#   - complete_affinity_prediction.csv  carries per-rank  lddt  and  affinity.
+#     lddt  is used as confidence (DynamicBind ranks by lddt by default).
+@register_discoverer("dynamicbind_asd")
+def discover_dynamicbind_asd(raw_root: Path) -> Iterator[tuple[str, list[ModelRecord]]]:
+    import csv as _csv
+    from collections import defaultdict as _ddict
+
+    all_records: dict[str, list[ModelRecord]] = _ddict(list)
+
+    for folder in sorted(raw_root.iterdir()):
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+        # Parse: allosteric_{UNIPROT}_{Nn}_{PDB}_{LIG}
+        parts = folder.name.split("_")
+        if len(parts) < 5 or parts[0].lower() != "allosteric":
+            continue
+        uniprot = parts[1]
+        lig     = parts[4]
+        compound_key = f"{uniprot}_{lig}".lower()
+
+        # Per-rank confidence from complete_affinity_prediction.csv
+        conf_map: dict[int, dict[str, float]] = {}
+        csv_path = folder / "complete_affinity_prediction.csv"
+        if csv_path.exists():
+            try:
+                with csv_path.open() as fh:
+                    for row in _csv.DictReader(fh):
+                        rank_str = row.get("rank")
+                        if rank_str is None:
+                            continue
+                        try:
+                            rank = int(rank_str)
+                        except ValueError:
+                            continue
+                        bucket = conf_map.setdefault(rank, {})
+                        for k, v in row.items():
+                            if k in ("name", "rank"):
+                                continue
+                            try:
+                                bucket[k] = float(v)
+                            except (TypeError, ValueError):
+                                pass
+            except Exception as e:
+                log.warning("[dynamicbind_asd %s] csv parse: %s", compound_key, e)
+
+        # Collect receptor PDBs and paired ligand SDFs
+        # Use *_relaxed.pdb glob to pick up only the energy-minimised version of each
+        # rank and avoid duplicating non-relaxed / relaxed pairs (20 → 10 models).
+        for pdb in sorted(folder.rglob("rank*_receptor*_relaxed.pdb")):
+            m = re.search(r"rank(\d+)", pdb.name)
+            if not m:
+                continue
+            rank = int(m.group(1))
+            sdfs = list(pdb.parent.glob(f"rank{rank}_ligand*.sdf"))
+            sdf  = sdfs[0] if sdfs else None
+            raw  = conf_map.get(rank, {})
+            # lddt is DynamicBind's structural quality score (higher = better);
+            # fall back to affinity then to negative rank.
+            confidence = raw.get("lddt", raw.get("affinity", -float(rank)))
+            all_records[compound_key].append(ModelRecord(
+                pdb_id=compound_key, producer="dynamicbind_asd",
+                structure_path=pdb, ligand_path=sdf,
+                raw_scores=raw, confidence=confidence,
+            ))
+
+    for compound_key, records in sorted(all_records.items()):
+        if records:
+            yield compound_key, records
+
+
+# ---------------------------------------------------------------------------
+# DynamicBind PLA discoverer
+# Same folder convention as dynamicbind_asd (allosteric_{UNIPROT}_{Nn}_{PDB}_{LIG})
+# but registered as "dynamicbind_pla" to slot into the PLA pipeline.
+# ---------------------------------------------------------------------------
+@register_discoverer("dynamicbind_pla")
+def discover_dynamicbind_pla(raw_root: Path) -> Iterator[tuple[str, list[ModelRecord]]]:
+    import csv as _csv
+    from collections import defaultdict as _ddict
+
+    all_records: dict[str, list[ModelRecord]] = _ddict(list)
+
+    for folder in sorted(raw_root.iterdir()):
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+        parts = folder.name.split("_")
+        if len(parts) < 5 or parts[0].lower() != "allosteric":
+            continue
+        uniprot = parts[1]
+        lig     = parts[4]
+        compound_key = f"{uniprot}_{lig}".lower()
+
+        conf_map: dict[int, dict[str, float]] = {}
+        csv_path = folder / "complete_affinity_prediction.csv"
+        if csv_path.exists():
+            try:
+                with csv_path.open() as fh:
+                    for row in _csv.DictReader(fh):
+                        rank_str = row.get("rank")
+                        if rank_str is None:
+                            continue
+                        try:
+                            rank = int(rank_str)
+                        except ValueError:
+                            continue
+                        bucket = conf_map.setdefault(rank, {})
+                        for k, v in row.items():
+                            if k in ("name", "rank"):
+                                continue
+                            try:
+                                bucket[k] = float(v)
+                            except (TypeError, ValueError):
+                                pass
+            except Exception as e:
+                log.warning("[dynamicbind_pla %s] csv parse: %s", compound_key, e)
+
+        for pdb in sorted(folder.rglob("rank*_receptor*_relaxed.pdb")):
+            m = re.search(r"rank(\d+)", pdb.name)
+            if not m:
+                continue
+            rank = int(m.group(1))
+            sdfs = list(pdb.parent.glob(f"rank{rank}_ligand*.sdf"))
+            sdf  = sdfs[0] if sdfs else None
+            raw  = conf_map.get(rank, {})
+            confidence = raw.get("lddt", raw.get("affinity", -float(rank)))
+            all_records[compound_key].append(ModelRecord(
+                pdb_id=compound_key, producer="dynamicbind_pla",
+                structure_path=pdb, ligand_path=sdf,
+                raw_scores=raw, confidence=confidence,
+            ))
+
+    for compound_key, records in sorted(all_records.items()):
+        if records:
+            yield compound_key, records
+
+
 # ---------------------------------------------------------------------------
 # Normalization driver
 # ---------------------------------------------------------------------------

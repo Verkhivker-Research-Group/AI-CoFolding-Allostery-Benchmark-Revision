@@ -78,6 +78,7 @@ def _rebuild_with_gemmi(
     fmt: str,                         # "pdb" | "cif"
     pdb_id: str,
     extra_ligand_sdf: bytes | None = None,
+    ligand_resname: str = "LIG",
 ) -> SanitizedCIF:
     gemmi = _import_gemmi()
 
@@ -99,9 +100,16 @@ def _rebuild_with_gemmi(
         log.info("gemmi read returned empty structure — rebuilding from raw _atom_site")
         st = _rebuild_from_atom_site(structure_bytes, pdb_id)
 
-    # Append an SDF ligand as its own chain if provided
+    # Append an SDF ligand as its own chain if provided.
+    # _append_sdf_as_chain returns bond connectivity so we can write a
+    # _chem_comp_bond loop — OST uses that loop to reconstruct the molecular
+    # graph for unknown residue names (e.g. "LIG"), enabling substructure
+    # matching for bisy_rmsd / lDDT-PLI even without a compound library entry.
+    lig_bonds: list[tuple[str, str, str]] = []
+    lig_resname_used: str = ligand_resname
     if extra_ligand_sdf is not None:
-        _append_sdf_as_chain(st, extra_ligand_sdf)
+        lig_bonds = _append_sdf_as_chain(st, extra_ligand_sdf,
+                                         res_name=ligand_resname)
 
     # Make sure required metadata loops exist. gemmi's setup_entities rebuilds
     # entity / entity_poly / struct_asym from the coordinate records — this is
@@ -133,6 +141,25 @@ def _rebuild_with_gemmi(
     # as_string() which returns the full serialized mmCIF.
     doc = st.make_mmcif_document()
     cif_text = doc.as_string()
+
+    # Append _chem_comp_bond loop for the SDF ligand so OST can do
+    # graph-based substructure matching.  Only added when an SDF was
+    # provided and bonds were successfully parsed — no-op for CIF-native
+    # producers (af3_pla, chai_pla, boltz_pla, protenix_pla) where
+    # extra_ligand_sdf is None and lig_bonds stays empty.
+    if lig_bonds:
+        bond_block = (
+            "\nloop_\n"
+            "_chem_comp_bond.comp_id\n"
+            "_chem_comp_bond.atom_id_1\n"
+            "_chem_comp_bond.atom_id_2\n"
+            "_chem_comp_bond.value_order\n"
+        )
+        bond_block += "".join(
+            f"{lig_resname_used} {a1} {a2} {order}\n"
+            for a1, a2, order in lig_bonds
+        )
+        cif_text += bond_block
 
     n_chains = len(st[0]) if len(st) else 0
     return SanitizedCIF(
@@ -294,10 +321,17 @@ def _rebuild_from_atom_site(cif_bytes: bytes, pdb_id: str):
 
 
 def _append_sdf_as_chain(st, sdf_bytes: bytes, chain_id: str = "L",
-                          res_name: str = "LIG", res_num: int = 1) -> None:
+                          res_name: str = "LIG", res_num: int = 1,
+                          ) -> list[tuple[str, str, str]]:
     """Append an SDF molecule to a gemmi Structure as a HETATM chain.
 
-    Uses RDKit to read atoms + coordinates, then materializes a gemmi chain.
+    Uses RDKit to read atoms + coordinates, then materialises a gemmi chain.
+
+    Returns a list of ``(atom_name_1, atom_name_2, value_order)`` tuples
+    suitable for writing a ``_chem_comp_bond`` mmCIF loop.  The caller is
+    responsible for appending that loop to the serialised CIF text so that
+    OST can reconstruct the molecular graph for unknown residue names.
+    Returns an empty list if the SDF cannot be parsed.
     """
     gemmi = _import_gemmi()
     Chem = _import_rdkit()
@@ -306,7 +340,7 @@ def _append_sdf_as_chain(st, sdf_bytes: bytes, chain_id: str = "L",
                                sanitize=False, removeHs=False)
     if mol is None:
         log.warning("could not parse SDF — ligand not appended")
-        return
+        return []
     conf = mol.GetConformer()
 
     # Avoid colliding with an existing chain id
@@ -334,16 +368,34 @@ def _append_sdf_as_chain(st, sdf_bytes: bytes, chain_id: str = "L",
     chain.add_residue(_empty_res)
     residue = chain[-1]
 
+    atom_names: list[str] = []
     for atom_idx in range(mol.GetNumAtoms()):
         a = mol.GetAtomWithIdx(atom_idx)
         pos = conf.GetAtomPosition(atom_idx)
         at = gemmi.Atom()
-        at.name = f"{a.GetSymbol()}{atom_idx + 1}"[:4]
+        name = f"{a.GetSymbol()}{atom_idx + 1}"[:4]
+        at.name = name
+        atom_names.append(name)
         at.element = gemmi.Element(a.GetSymbol())
         at.pos = gemmi.Position(pos.x, pos.y, pos.z)
         at.occ = 1.0
         at.b_iso = 20.0
         residue.add_atom(at)
+
+    # Collect bond connectivity from the SDF bond table.
+    _ORDER = {
+        Chem.rdchem.BondType.SINGLE:   "SING",
+        Chem.rdchem.BondType.DOUBLE:   "DOUB",
+        Chem.rdchem.BondType.TRIPLE:   "TRIP",
+        Chem.rdchem.BondType.AROMATIC: "AROM",
+    }
+    bonds: list[tuple[str, str, str]] = []
+    for bond in mol.GetBonds():
+        i1 = bond.GetBeginAtomIdx()
+        i2 = bond.GetEndAtomIdx()
+        order = _ORDER.get(bond.GetBondType(), "SING")
+        bonds.append((atom_names[i1], atom_names[i2], order))
+    return bonds
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +448,7 @@ def sanitize(
     structure_path: Path,
     pdb_id: str,
     ligand_path: Path | None = None,
+    ligand_resname: str = "LIG",
 ) -> SanitizedCIF:
     """Convert any supported input into a clean, OST-ready mmCIF (in memory).
 
@@ -431,7 +484,8 @@ def sanitize(
 
     # Try gemmi first — it rebuilds entity metadata properly.
     try:
-        return _rebuild_with_gemmi(structure_bytes, fmt, pdb_id, sdf_bytes)
+        return _rebuild_with_gemmi(structure_bytes, fmt, pdb_id, sdf_bytes,
+                                   ligand_resname=ligand_resname)
     except ImportError:
         log.info("gemmi not available; falling back to biopython")
     except Exception as e:
