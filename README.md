@@ -1,4 +1,4 @@
-# Benchmarking AI-Based Co-Folding and Docking Models for Predicting Structures of Orthosteric and Allosteric Ligand–Protein Complexes  
+# A Systematic Interrogation of AI Models for Prediction of Orthosteric and Allosteric Binding: Unmasking Allosteric Grammar with Explainable AI 
 ## Decoding the Allosteric Blind Spot Using a Landscape-Guided Interpretable AI Framework
 
 ## Pipeline Overview
