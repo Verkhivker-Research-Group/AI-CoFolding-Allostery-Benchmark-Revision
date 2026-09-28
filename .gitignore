@@ -2,7 +2,6 @@
 plb_bench_data/
 predictions/
 output/
-misato_output/
 proteinx_output*/
 af3_summary_final*/
 allosteric_csv_run_outputs*/
